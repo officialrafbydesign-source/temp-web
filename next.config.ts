@@ -1,7 +1,18 @@
-import type { NextConfig } from "next";
+import path from 'path';
+import { type NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    turbo: true, // ensures Turbopack is enabled
+  },
+  webpack(config) {
+    // Add alias @ -> app/
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@': path.resolve(__dirname, 'app'),
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

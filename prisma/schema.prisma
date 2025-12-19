@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//////////////////////
+// USERS
+//////////////////////
+
+model User {
+  id         String          @id @default(cuid())
+  name       String
+  email      String          @unique
+  beatOrders BeatOrder[]
+  bookings   Booking[]
+  enquiries  DesignEnquiry[]
+}
+
+//////////////////////
+// BEAT STORE (BeatStars-style)
+//////////////////////
+
+model Beat {
+  id           String   @id @default(cuid())
+  title        String
+  genre        String?
+  bpm          Int?
+  key          String?
+  description  String?
+  artworkUrl   String?
+  audioUrl     String?
+  fileUrl      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  licenses     License[]
+  beatOrders   BeatOrder[]
+  downloadLogs DownloadLog[]   // 👈 ADD THIS
+  freeDownload Boolean @default(false)
+}
+
+model License {
+  id         String      @id @default(cuid())
+  name       String
+  price      Int // cents
+  beatId     String
+  beat       Beat        @relation(fields: [beatId], references: [id])
+  beatOrders BeatOrder[]
+}
+
+model BeatOrder {
+  id        String   @id @default(cuid())
+  userId    String
+  beatId    String
+  licenseId String
+  amount    Int
+  status    String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  beat    Beat    @relation(fields: [beatId], references: [id])
+  license License @relation(fields: [licenseId], references: [id])
+}
+
+//////////////////////
+// DOWNLOAD LOGS
+//////////////////////
+
+model DownloadLog {
+  id        String   @id @default(cuid())
+  beatId    String
+  userEmail String?
+  ip        String?
+  type      String // "free" | "licensed"
+  createdAt DateTime @default(now())
+
+  beat Beat @relation(fields: [beatId], references: [id])
+}
+
+//////////////////////
+// MUSIC STORE (iTunes-style)
+//////////////////////
+
+model Artist {
+  id    String @id @default(cuid())
+  name  String
+  songs Song[]
+}
+
+model Song {
+  id           String        @id @default(cuid())
+  title        String
+  genre        String
+  duration     Int? // seconds
+  artistId     String
+  artist       Artist        @relation(fields: [artistId], references: [id])
+  musicProduct MusicProduct?
+}
+
+model MusicProduct {
+  id     String @id @default(cuid())
+  songId String @unique
+  song   Song   @relation(fields: [songId], references: [id])
+
+  price     Int // cents
+  coverUrl  String
+  createdAt DateTime @default(now())
+
+  variants Variant[]
+}
+
+model Variant {
+  id             String       @id @default(cuid())
+  musicProductId String
+  musicProduct   MusicProduct @relation(fields: [musicProductId], references: [id])
+
+  format String // mp3, wav, vinyl, cd
+  stock  Int?
+}
+
+//////////////////////
+// SERVICES
+//////////////////////
+
+model Service {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  price       Int
+  bookings    Booking[]
+}
+
+model Booking {
+  id        String   @id @default(cuid())
+  userId    String
+  serviceId String
+  date      DateTime
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+}
+
+//////////////////////
+// DESIGN ENQUIRIES
+//////////////////////
+
+model DesignEnquiry {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  details   String
+  fileUrl   String?
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+//////////////////////
+// UNIVERSAL ORDERS (Stripe-confirmed)
+//////////////////////
+
+model Order {
+  id              String   @id @default(cuid())
+  stripeSessionId String   @unique
+
+  email    String
+  amount   Int
+  currency String
+
+  // What was purchased
+  productType String // "beat" | "music" | "product"
+  productId   String?
+  licenseId   String?
+
+  // Order lifecycle
+  status    String   @default("paid") 
+  // paid | processing | shipped | delivered | cancelled
+
+  // Physical fulfillment (only for productType = "product")
+  quantity        Int?      // null for beats/music
+  trackingNumber  String?
+  carrier         String?
+  shippedAt       DateTime?
+
+  createdAt DateTime @default(now())
+}
+
