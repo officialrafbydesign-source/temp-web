@@ -1,6 +1,14 @@
-import 'dotenv/config';
+// app/lib/prisma.ts
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 
-// Use default export to simplify imports
-const prisma = new PrismaClient();
-export default prisma;
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    log: ["query"],
+  });
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
