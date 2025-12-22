@@ -18,7 +18,7 @@
     "paths": {
       "@/*": ["./app/*"],
       "@components/*": ["./app/components/*"],
-      "@lib/*": ["./lib/*"],
+      "@lib/*": ["app/lib/*"],
       "@context/*": ["./app/context/*"]
     },
     "plugins": [
@@ -29,7 +29,7 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "lib/prisma.ts",
+    "app/lib/prisma.ts",
     "test-prisma.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"

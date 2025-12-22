@@ -1,5 +1,5 @@
 import 'dotenv/config';  
-import prisma from './lib/prisma';
+import prisma from './app/lib/prisma';
 
 async function test() {
   const beats = await prisma.beat.findMany();
