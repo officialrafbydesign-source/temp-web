@@ -6,11 +6,15 @@ import BeatCard from "@/components/BeatCard";
 type Beat = {
   id: string;
   title: string;
-  bpm: number;
-  genre: string;
-  artworkUrl: string;
-  audioUrl: string;
-  licenses: { id: string; name: string; price: number }[];
+  bpm?: number;
+  genre?: string;
+  artworkUrl?: string;
+  audioUrl?: string;
+  licenses?: { id: string; name: string; price: number }[];
+  artist?: string;
+  coverUrl?: string;
+  price?: number;
+  stock?: number;
 };
 
 export default function BeatsAdminPage() {

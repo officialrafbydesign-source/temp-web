@@ -1,10 +1,10 @@
 // app/api/checkout/create-session/route.tsx
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // Ensure Prisma is imported
+import { prisma } from "@/lib/prisma";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2022-11-15", // Ensure you're using a valid API version
+  apiVersion: "2022-11-15",
 });
 
 export async function POST(req: Request) {
@@ -12,7 +12,10 @@ export async function POST(req: Request) {
     const { beatId, licenseName, quantity } = await req.json();
 
     if (!beatId || !licenseName || !quantity) {
-      return NextResponse.json({ error: "Missing required parameters" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required parameters" },
+        { status: 400 }
+      );
     }
 
     // Fetch beat details from the database
@@ -21,18 +24,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Beat not found" }, { status: 404 });
     }
 
-    // Calculate total price for the selected quantity
+    // Calculate total price (assuming beat.price exists in GBP)
     const totalAmount = beat.price * quantity;
 
-    // Create a Stripe Checkout session
+    // Create Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
-            currency: "GBP", // Adjust currency if needed
+            currency: "GBP",
             product_data: { name: `${beat.title} - ${licenseName}` },
-            unit_amount: totalAmount * 100, // Amount in cents
+            unit_amount: totalAmount * 100, // in pence/cents
           },
           quantity: 1,
         },
@@ -43,13 +46,16 @@ export async function POST(req: Request) {
         licenseName,
         quantity: quantity.toString(),
       },
-      success_url: `${process.env.NEXT_PUBLIC_DOMAIN}/success`, // Redirect URL after successful payment
-      cancel_url: `${process.env.NEXT_PUBLIC_DOMAIN}/cart`, // Redirect URL on cancellation
+      success_url: `${process.env.NEXT_PUBLIC_DOMAIN}/success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_DOMAIN}/cart`,
     });
 
-    return NextResponse.json({ url: session.url }); // Return Stripe session URL for redirection
+    return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("Error creating Stripe session:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

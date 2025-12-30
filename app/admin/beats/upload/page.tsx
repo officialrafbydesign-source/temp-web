@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 
+type License = {
+  name: string;
+  price: number;
+};
+
 export default function UploadBeatPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -13,7 +18,7 @@ export default function UploadBeatPage() {
   const [audio, setAudio] = useState<File | null>(null);
   const [beatFile, setBeatFile] = useState<File | null>(null);
 
-  const [licenses, setLicenses] = useState([
+  const [licenses, setLicenses] = useState<License[]>([
     { name: "MP3 Lease", price: 20 },
     { name: "WAV Lease", price: 40 },
     { name: "Unlimited Lease", price: 80 },
@@ -22,16 +27,25 @@ export default function UploadBeatPage() {
   const [loading, setLoading] = useState(false);
   const [resultMsg, setResultMsg] = useState("");
 
-  const handleLicenseChange = (index: number, field: string, value: any) => {
-    const newLicenses = [...licenses];
-    newLicenses[index][field] = value;
-    setLicenses(newLicenses);
-  };
+const handleLicenseChange = (
+  index: number,
+  field: "name" | "price",
+  value: string | number
+) => {
+  const newLicenses = [...licenses];
+  if (field === "name" && typeof value === "string") {
+    newLicenses[index].name = value;
+  } else if (field === "price" && typeof value === "number") {
+    newLicenses[index].price = value;
+  }
+  setLicenses(newLicenses);
+};
+
 
   const addLicense = () =>
     setLicenses([...licenses, { name: "", price: 0 }]);
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setResultMsg("");

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCart } from "@/app/context/CartContext";
+import { useCart } from "@/context/CartContext";
 import { useState } from "react";
 
 export default function Navbar() {

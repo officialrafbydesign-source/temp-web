@@ -1,3 +1,4 @@
+// app/api/music/[id]/download/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import fs from "fs";
@@ -5,9 +6,9 @@ import { logDownload } from "@/lib/downloadLogger";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const productId = params.id;
+  const { id: productId } = await params;
   const userEmail = req.headers.get("x-user-email");
 
   if (!userEmail) {
@@ -16,35 +17,58 @@ export async function GET(
 
   const product = await prisma.musicProduct.findUnique({
     where: { id: productId },
-    include: { variants: true },
+    include: { song: true, variants: true },
   });
 
   if (!product || !product.fileUrl) {
-    return NextResponse.json({ error: "Music product not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Music product not found" },
+      { status: 404 }
+    );
   }
 
   // Check user has purchased this product
   const order = await prisma.order.findFirst({
-    where: { productId, productType: "music", userEmail, status: "paid" },
+    where: {
+      productId,
+      productType: "music",
+      userEmail,
+      status: "paid",
+    },
   });
 
   if (!order) {
-    return NextResponse.json({ error: "Purchase required" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Purchase required" },
+      { status: 403 }
+    );
   }
 
   const format = req.nextUrl.searchParams.get("format") ?? "mp3";
 
-  const variant = product.variants.find(v => v.format.toLowerCase() === format.toLowerCase());
-  if (!variant) return NextResponse.json({ error: "Format not available" }, { status: 404 });
+  const variant = product.variants.find(
+    (v) => v.format?.toLowerCase() === format.toLowerCase()
+  );
+
+  if (!variant) {
+    return NextResponse.json(
+      { error: "Format not available" },
+      { status: 404 }
+    );
+  }
 
   // 🔹 LOG DOWNLOAD
   await logDownload({
-    beatId: productId,
+    productId,
     userEmail,
-    ip: req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown",
+    ip:
+      req.headers.get("x-forwarded-for") ??
+      req.headers.get("x-real-ip") ??
+      "unknown",
     type: "music",
   });
 
+  // Read file and send as response
   const fileBuffer = fs.readFileSync(product.fileUrl);
   const filename = `${product.song.title}.${format}`;
 
@@ -55,3 +79,4 @@ export async function GET(
     },
   });
 }
+

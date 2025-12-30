@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma"; // Ensure prisma client is correctly imported
+import { prisma } from "@/lib/prisma";
+ // Ensure prisma client is correctly imported
 
 // GET: Fetch all music products
 export async function GET() {

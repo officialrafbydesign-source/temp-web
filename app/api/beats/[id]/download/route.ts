@@ -5,9 +5,9 @@ import { logDownload } from "@/lib/downloadLogger";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const beatId = params.id;
+  const { id: beatId } = await params;
   const userEmail = req.headers.get("x-user-email");
 
   if (!userEmail) {
@@ -24,7 +24,11 @@ export async function GET(
 
   // Check user has purchased a license
   const order = await prisma.beatOrder.findFirst({
-    where: { beatId, user: { email: userEmail }, status: "paid" },
+    where: {
+      beatId,
+      user: { email: userEmail },
+      status: "paid",
+    },
   });
 
   if (!order) {
@@ -35,7 +39,10 @@ export async function GET(
   await logDownload({
     beatId,
     userEmail,
-    ip: req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown",
+    ip:
+      req.headers.get("x-forwarded-for") ??
+      req.headers.get("x-real-ip") ??
+      "unknown",
     type: "beat",
   });
 

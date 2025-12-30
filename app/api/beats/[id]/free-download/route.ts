@@ -7,9 +7,9 @@ import path from "path";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const beatId = params.id;
+  const { id: beatId } = await params;
   const userEmail = req.headers.get("x-user-email") ?? "anonymous";
 
   const beat = await prisma.beat.findUnique({
@@ -21,11 +21,17 @@ export async function GET(
   }
 
   if (!beat.freeDownload) {
-    return NextResponse.json({ error: "Free download not allowed for this beat" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Free download not allowed for this beat" },
+      { status: 403 }
+    );
   }
 
   if (!beat.fileUrl) {
-    return NextResponse.json({ error: "Audio file unavailable" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Audio file unavailable" },
+      { status: 404 }
+    );
   }
 
   // Tag the beat with watermark + metadata
@@ -37,14 +43,20 @@ export async function GET(
       beat_id: beatId,
       downloaded_at: new Date().toISOString(),
     },
-    watermarkPath: path.join(process.cwd(), "lib/audio/your-tag-file.mp3"),
+    watermarkPath: path.join(
+      process.cwd(),
+      "lib/audio/your-tag-file.mp3"
+    ),
   });
 
   // 🔹 LOG DOWNLOAD
   await logDownload({
     beatId,
     userEmail,
-    ip: req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown",
+    ip:
+      req.headers.get("x-forwarded-for") ??
+      req.headers.get("x-real-ip") ??
+      "unknown",
     type: "beat",
   });
 
@@ -58,6 +70,7 @@ export async function GET(
     },
   });
 
+  // Cleanup temp file after 10 seconds
   setTimeout(() => fs.unlink(taggedFilePath, () => {}), 10_000);
 
   return response;

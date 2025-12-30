@@ -1,3 +1,4 @@
+// app/api/beats/upload/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
@@ -12,7 +13,6 @@ export async function POST(req: Request) {
     const bpm = Number(formData.get("bpm"));
     const key = formData.get("key") as string;
     const genre = formData.get("genre") as string;
-
     const licenses = JSON.parse(formData.get("licenses") as string);
 
     const artwork = formData.get("artwork") as File;
@@ -33,15 +33,13 @@ export async function POST(req: Request) {
     // Helper to save uploaded files
     const saveFile = async (file: File) => {
       const bytes = Buffer.from(await file.arrayBuffer());
-      const fileName = `${Date.now()}-${file.name}`; // prevent name conflicts
+      const fileName = `${Date.now()}-${file.name}`;
       const filePath = path.join(uploadDir, fileName);
-
       await writeFile(filePath, bytes);
-
       return `/uploads/${fileName}`;
     };
 
-    // Save actual files
+    // Save files
     const artworkUrl = await saveFile(artwork);
     const audioUrl = await saveFile(audio);
     const fileUrl = await saveFile(beatFile);
@@ -64,9 +62,7 @@ export async function POST(req: Request) {
           })),
         },
       },
-      include: {
-        licenses: true,
-      },
+      include: { licenses: true },
     });
 
     return NextResponse.json({ success: true, beat });

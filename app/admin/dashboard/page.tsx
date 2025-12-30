@@ -1,3 +1,4 @@
+// app/admin/dashboard/page.tsx
 import { prisma } from "@/lib/prisma";
 import React from "react";
 
@@ -8,20 +9,24 @@ export default async function DashboardPage() {
   const beatOrders = await prisma.beatOrder.findMany({
     include: { user: true, beat: true, license: true },
     orderBy: { createdAt: "desc" },
+    take: 20, // fetch latest 20
   });
 
   const musicOrders = await prisma.order.findMany({
     where: { productType: "music" },
     orderBy: { createdAt: "desc" },
+    take: 20,
   });
 
   const productOrders = await prisma.order.findMany({
     where: { productType: "product" },
     orderBy: { createdAt: "desc" },
+    take: 20,
   });
 
   const downloadLogs = await prisma.downloadLog.findMany({
     orderBy: { createdAt: "desc" },
+    take: 20,
   });
 
   // ---------------------------
@@ -72,7 +77,7 @@ export default async function DashboardPage() {
           </tr>
         </thead>
         <tbody>
-          {beatOrders.map(order => (
+          {beatOrders.map((order) => (
             <tr key={order.id}>
               <td className="border px-2 py-1">{order.beat.title}</td>
               <td className="border px-2 py-1">{order.license.name}</td>
@@ -97,10 +102,10 @@ export default async function DashboardPage() {
           </tr>
         </thead>
         <tbody>
-          {musicOrders.map(order => (
+          {musicOrders.map((order) => (
             <tr key={order.id}>
               <td className="border px-2 py-1">{order.productId}</td>
-              <td className="border px-2 py-1">{order.userEmail}</td>
+              <td className="border px-2 py-1">{order.email}</td>
               <td className="border px-2 py-1">{order.quantity}</td>
               <td className="border px-2 py-1">{order.status}</td>
               <td className="border px-2 py-1">{order.createdAt.toISOString()}</td>
@@ -121,10 +126,10 @@ export default async function DashboardPage() {
           </tr>
         </thead>
         <tbody>
-          {productOrders.map(order => (
+          {productOrders.map((order) => (
             <tr key={order.id}>
               <td className="border px-2 py-1">{order.productId}</td>
-              <td className="border px-2 py-1">{order.userEmail}</td>
+              <td className="border px-2 py-1">{order.email}</td>
               <td className="border px-2 py-1">{order.quantity}</td>
               <td className="border px-2 py-1">{order.status}</td>
               <td className="border px-2 py-1">{order.createdAt.toISOString()}</td>
@@ -145,10 +150,10 @@ export default async function DashboardPage() {
           </tr>
         </thead>
         <tbody>
-          {downloadLogs.map(log => (
+          {downloadLogs.map((log) => (
             <tr key={log.id}>
               <td className="border px-2 py-1">{log.beatId}</td>
-              <td className="border px-2 py-1">{log.userEmail}</td>
+              <td className="border px-2 py-1">{log.userEmail || "N/A"}</td>
               <td className="border px-2 py-1">{log.type}</td>
               <td className="border px-2 py-1">{log.ip}</td>
               <td className="border px-2 py-1">{log.createdAt.toISOString()}</td>

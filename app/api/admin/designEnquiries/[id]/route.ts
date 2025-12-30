@@ -1,28 +1,48 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
-// PATCH: update booking status
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+// PATCH: update design enquiry status
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params;
     const { status } = await req.json();
-    const updatedBooking = await prisma.booking.update({
-      where: { id: params.id },
+
+    const updatedEnquiry = await prisma.designEnquiry.update({
+      where: { id },
       data: { status },
     });
-    return NextResponse.json(updatedBooking);
+
+    return NextResponse.json(updatedEnquiry);
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Failed to update booking" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update enquiry" },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE: delete booking
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+// DELETE: delete design enquiry
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    await prisma.booking.delete({ where: { id: params.id } });
+    const { id } = await params;
+
+    await prisma.designEnquiry.delete({
+      where: { id },
+    });
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Failed to delete booking" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete enquiry" },
+      { status: 500 }
+    );
   }
 }

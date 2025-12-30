@@ -1,7 +1,8 @@
 // app/api/checkout/route.ts
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
+
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2022-11-15",
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
       title = item.title;
     }
 
+    // Create Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -77,8 +79,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
-    console.error(error);
+    console.error("Stripe Checkout Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-

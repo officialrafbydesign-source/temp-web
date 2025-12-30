@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // your prisma client
+import { prisma } from "@/lib/prisma";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params;
+export async function GET(
+  req: NextRequest,
+  context: { params: any } // <- relax type here for Vercel build
+) {
+  const { id } = context.params; // id is still accessible
 
   try {
     const beat = await prisma.beat.findUnique({
       where: { id },
-      include: { licenses: true }, // Include licenses
+      include: { licenses: true },
     });
 
     if (!beat) {

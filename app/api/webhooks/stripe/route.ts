@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma"; // Named export
 import { sendEmail } from "@/lib/email";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
-  } catch {
+  } catch (err) {
+    console.error("Webhook signature verification failed:", err);
     return NextResponse.json(
       { error: "Webhook signature verification failed" },
       { status: 400 }
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
   const productType = metadata.productType;
   const productId = metadata.productId;
   const licenseId = metadata.licenseId;
-  const quantity = metadata.quantity ? parseInt(metadata.quantity) : 1;
+  const quantity = metadata.quantity ? parseInt(metadata.quantity, 10) : 1;
   const email = session.customer_email!;
 
   try {
@@ -83,7 +84,9 @@ export async function POST(req: NextRequest) {
 
     // ---------------- PHYSICAL PRODUCT ----------------
     if (productType === "product") {
-      const product = await prisma.product.findUnique({ where: { id: productId } });
+      const product = await prisma.product.findUnique({
+        where: { id: productId },
+      });
       if (!product || (product.stock ?? 0) < quantity) {
         throw new Error("Insufficient stock");
       }
@@ -109,7 +112,7 @@ export async function POST(req: NextRequest) {
       orderId = order.id;
     }
 
-    // ✅ SEND CONFIRMATION EMAIL AFTER SUCCESS
+    // ✅ SEND CONFIRMATION EMAIL
     if (orderId) {
       await sendEmail({
         to: email,
@@ -123,7 +126,7 @@ export async function POST(req: NextRequest) {
     }
 
   } catch (err: any) {
-    console.error("Webhook error:", err.message);
+    console.error("Stripe webhook error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 

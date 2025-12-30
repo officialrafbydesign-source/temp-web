@@ -1,5 +1,6 @@
+// app/api/admin/bookings/route.ts
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 // GET: fetch all bookings and design enquiries
 export async function GET() {
