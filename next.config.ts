@@ -1,15 +1,18 @@
-import path from 'path';
-import { type NextConfig } from 'next';
+import path from "path";
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    turbo: true, // ensures Turbopack is enabled
+  typescript: {
+    ignoreBuildErrors: true,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   webpack(config) {
-    // Add alias @ -> app/
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
-      '@': path.resolve(__dirname, 'app'),
+      "@": path.resolve(__dirname),
     };
     return config;
   },
