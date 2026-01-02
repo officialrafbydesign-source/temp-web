@@ -1,8 +1,17 @@
-// app/admin/beats/orders/page.tsx
-import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 
+// ✅ Dynamic Prisma import to avoid Vercel build-time errors
+let prisma: typeof import("@/lib/prisma").prisma | null = null;
+
+if (typeof window === "undefined") {
+  prisma = (await import("@/lib/prisma")).prisma;
+}
+
 export default async function OrdersPage() {
+  if (!prisma) {
+    return <div>Prisma not available at build time</div>;
+  }
+
   // Fetch all beat orders including related beat, license, and user
   const orders = await prisma.beatOrder.findMany({
     include: {

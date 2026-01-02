@@ -1,9 +1,19 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
+// ✅ Dynamic Prisma import to avoid Vercel build-time errors
+let prisma: typeof import("@/lib/prisma").prisma | null = null;
+
+if (typeof window === "undefined") {
+  prisma = (await import("@/lib/prisma")).prisma;
+}
+
 export default async function ShopPage() {
+  if (!prisma) {
+    return <div>Prisma not available at build time</div>;
+  }
+
   const products = await prisma.product.findMany({
-    include: { variants: true }
+    include: { variants: true },
   });
 
   return (
@@ -12,27 +22,31 @@ export default async function ShopPage() {
       <p className="text-gray-600 mb-8">Beat packs, sample kits, merch & more.</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product) => (
-          <Link
-            key={product.id}
-            href={`/shop/${product.id}`}
-            className="border rounded-lg overflow-hidden shadow hover:shadow-lg transition bg-white"
-          >
-            <img
-              src={product.imageUrl}
-              alt={product.name}
-              className="w-full h-64 object-cover"
-            />
+        {products.map((product) => {
+          const priceGBP = product.price ? `£${product.price.toFixed(2)}` : "Free";
 
-            <div className="p-4">
-              <h2 className="font-bold text-xl">{product.name}</h2>
+          return (
+            <Link
+              key={product.id}
+              href={`/shop/${product.id}`}
+              className="border rounded-lg overflow-hidden shadow hover:shadow-lg transition bg-white"
+            >
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-full h-64 object-cover"
+              />
 
-              <p className="text-gray-800 font-semibold mt-2">
-                From £{product.price.toFixed(2)}
-              </p>
-            </div>
-          </Link>
-        ))}
+              <div className="p-4">
+                <h2 className="font-bold text-xl">{product.name}</h2>
+
+                <p className="text-gray-800 font-semibold mt-2">
+                  From {priceGBP}
+                </p>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

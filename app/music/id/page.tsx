@@ -1,11 +1,22 @@
-import { prisma } from "@/lib/prisma";
+// app/music/[id]/page.tsx
 import { notFound } from "next/navigation";
+
+// ✅ Dynamic Prisma import to avoid Vercel build-time errors
+let prisma: typeof import("@/lib/prisma").prisma | null = null;
+
+if (typeof window === "undefined") {
+  prisma = (await import("@/lib/prisma")).prisma;
+}
 
 type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function BeatDetailPage({ params }: PageProps) {
+export default async function MusicDetailPage({ params }: PageProps) {
+  if (!prisma) {
+    return <div>Prisma not available at build time</div>;
+  }
+
   const { id } = await params;
 
   const beat = await prisma.beat.findUnique({
@@ -24,14 +35,16 @@ export default async function BeatDetailPage({ params }: PageProps) {
       <div className="mt-4">
         <h2 className="text-2xl font-semibold mb-2">Licenses</h2>
         <ul className="list-disc list-inside">
-          {beat.licenses.map((license) => (
-            <li key={license.id}>
-              {license.name} - ${license.price}
-            </li>
-          ))}
+          {beat.licenses.map((license) => {
+            const priceGBP = license.price ? `£${(license.price / 100).toFixed(2)}` : "Free";
+            return (
+              <li key={license.id}>
+                {license.name} - {priceGBP}
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>
   );
 }
-

@@ -1,11 +1,26 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-11-01", // latest version
-});
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
+// 🚨 Prevent build-time crash on Vercel
+if (!stripeSecretKey) {
+  console.warn("STRIPE_SECRET_KEY is not set. Stripe API disabled at build time.");
+}
+
+const stripe = stripeSecretKey
+  ? new Stripe(stripeSecretKey, { apiVersion: "2025-11-01" })
+  : null;
+
+// GET: retrieve checkout session
 export async function GET(req: Request) {
+  if (!stripe) {
+    return NextResponse.json(
+      { error: "Stripe is not configured" },
+      { status: 500 }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const session_id = searchParams.get("session_id");
 
@@ -35,4 +50,35 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+// POST: create checkout session
+export async function POST(req: Request) {
+  if (!stripe) {
+    return NextResponse.json(
+      { error: "Stripe is not configured" },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const body = await req.json();
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
+      line_items: body.items,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/cancel`,
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Failed to create checkout session" },
+      { status: 500 }
+    );
+  }
+}
+
 

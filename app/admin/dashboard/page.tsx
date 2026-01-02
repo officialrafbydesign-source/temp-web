@@ -1,8 +1,17 @@
-// app/admin/dashboard/page.tsx
-import { prisma } from "@/lib/prisma";
 import React from "react";
 
+// ✅ Dynamic Prisma import to avoid Vercel build-time errors
+let prisma: typeof import("@/lib/prisma").prisma | null = null;
+
+if (typeof window === "undefined") {
+  prisma = (await import("@/lib/prisma")).prisma;
+}
+
 export default async function DashboardPage() {
+  if (!prisma) {
+    return <div>Prisma not available at build time</div>;
+  }
+
   // ---------------------------
   // Fetch all relevant data
   // ---------------------------
@@ -82,7 +91,9 @@ export default async function DashboardPage() {
               <td className="border px-2 py-1">{order.beat.title}</td>
               <td className="border px-2 py-1">{order.license.name}</td>
               <td className="border px-2 py-1">{order.user.email}</td>
-              <td className="border px-2 py-1">{(order.amount / 100).toFixed(2)}</td>
+              <td className="border px-2 py-1">
+                {order.amount ? `£${(order.amount / 100).toFixed(2)}` : "Free"}
+              </td>
               <td className="border px-2 py-1">{order.status}</td>
               <td className="border px-2 py-1">{order.createdAt.toISOString()}</td>
             </tr>
