@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "clean": "rimraf .next node_modules/.cache",
+    "prisma:generate": "prisma generate",
     "dev": "next dev",
     "build": "prisma generate && next build --webpack",
     "start": "next start"
