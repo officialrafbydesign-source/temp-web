@@ -2,76 +2,47 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 
-/**
- * Runtime-only Stripe initializer
- */
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) return null;
-
-  return new Stripe(key, {
-    apiVersion: "2022-11-15",
-  });
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
+  return new Stripe(key, { apiVersion: "2022-11-15" });
 }
 
 export async function POST(req: Request) {
-  const stripe = getStripe();
-
-  if (!stripe) {
-    return NextResponse.json(
-      { error: "Stripe is not configured" },
-      { status: 500 }
-    );
-  }
-
   try {
+    const stripe = getStripe();
     const { productId, productType, licenseId } = await req.json();
 
-    let item: any;
-    let price: number;
-    let title: string;
+    let price = 0;
+    let title = "";
 
-    // ---------------- BEATS ----------------
     if (productType === "beat") {
       const license = await prisma.license.findUnique({
         where: { id: licenseId },
         include: { beat: true },
       });
-
       if (!license) throw new Error("License not found");
-
-      item = license.beat;
       price = license.price;
       title = `${license.beat.title} – ${license.name} License`;
     }
 
-    // ---------------- MUSIC ----------------
     if (productType === "music") {
-      item = await prisma.musicProduct.findUnique({
-        where: { id: productId },
-      });
-
-      if (!item) throw new Error("Music product not found");
-
-      price = Math.round(item.price * 100);
+      const item = await prisma.musicProduct.findUnique({ where: { id: productId } });
+      if (!item) throw new Error("Music not found");
+      price = item.price * 100;
       title = item.title;
     }
 
-    // ---------------- PHYSICAL ----------------
     if (productType === "product") {
-      item = await prisma.product.findUnique({
-        where: { id: productId },
-      });
-
+      const item = await prisma.product.findUnique({ where: { id: productId } });
       if (!item) throw new Error("Product not found");
-
       price = item.price;
       title = item.title;
     }
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
       mode: "payment",
+      payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
@@ -82,18 +53,13 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      metadata: {
-        productType,
-        productId,
-        licenseId: licenseId ?? "",
-      },
+      metadata: { productType, productId, licenseId: licenseId ?? "" },
       success_url: `${process.env.NEXT_PUBLIC_URL}/success`,
       cancel_url: `${process.env.NEXT_PUBLIC_URL}/cancel`,
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error: any) {
-    console.error("Stripe Checkout Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
