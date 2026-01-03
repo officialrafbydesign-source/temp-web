@@ -1,78 +1,77 @@
-import { format } from "date-fns";
+// app/admin/beats/orders/page.tsx
 
-// ✅ Dynamic Prisma import to avoid Vercel build-time errors
-let prisma: typeof import("@/lib/prisma").prisma | null = null;
+"use client"; // ✅ This makes the page a client component
 
-if (typeof window === "undefined") {
-  prisma = (await import("@/lib/prisma")).prisma;
-}
+import React, { useEffect, useState } from "react";
 
-export default async function OrdersPage() {
-  if (!prisma) {
-    return <div>Prisma not available at build time</div>;
-  }
+type Order = {
+  id: string;
+  beat: { title: string };
+  license: { name: string };
+  user: { name?: string; email: string };
+  amount: number;
+  status: string;
+  createdAt: string;
+};
 
-  // Fetch all beat orders including related beat, license, and user
-  const orders = await prisma.beatOrder.findMany({
-    include: {
-      beat: true,
-      license: true,
-      user: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+export default function AdminBeatsOrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchOrders() {
+      try {
+        const res = await fetch("/api/admin/beats/orders");
+        const data = await res.json();
+        if (res.ok) {
+          setOrders(data.orders);
+        } else {
+          setError(data.error || "Failed to fetch orders");
+        }
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchOrders();
+  }, []);
+
+  if (loading) return <p>Loading orders...</p>;
+  if (error) return <p>Error: {error}</p>;
 
   return (
-    <main className="max-w-7xl mx-auto p-6">
-      {/* Page Summary */}
-      <section className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">🎵 Beat Orders</h1>
-        <p className="text-gray-600">
-          View all beat orders placed by users, including license type, buyer info, and order status.
-        </p>
-      </section>
+    <div className="p-8 max-w-5xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6">Beat Orders</h1>
 
-      {/* Orders Table */}
-      <section>
-        {orders.length === 0 ? (
-          <p>No beat orders found.</p>
-        ) : (
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="p-2 border">Order ID</th>
-                <th className="p-2 border">Beat</th>
-                <th className="p-2 border">License</th>
-                <th className="p-2 border">User</th>
-                <th className="p-2 border">Email</th>
-                <th className="p-2 border">Date</th>
-                <th className="p-2 border">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50">
-                  <td className="p-2 border">{order.id}</td>
-                  <td className="p-2 border">{order.beat.title}</td>
-                  <td className="p-2 border">{order.license.name}</td>
-                  <td className="p-2 border">{order.user.name || "N/A"}</td>
-                  <td className="p-2 border">{order.user.email}</td>
-                  <td className="p-2 border">{format(order.createdAt, "dd/MM/yyyy")}</td>
-                  <td className="p-2 border">
-                    <span
-                      className={`px-2 py-1 rounded text-white ${
-                        order.status === "paid" ? "bg-green-500" : "bg-gray-500"
-                      }`}
-                    >
-                      {order.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-    </main>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th className="border px-4 py-2">Order ID</th>
+            <th className="border px-4 py-2">Beat</th>
+            <th className="border px-4 py-2">License</th>
+            <th className="border px-4 py-2">User</th>
+            <th className="border px-4 py-2">Amount</th>
+            <th className="border px-4 py-2">Status</th>
+            <th className="border px-4 py-2">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((order) => (
+            <tr key={order.id}>
+              <td className="border px-4 py-2">{order.id}</td>
+              <td className="border px-4 py-2">{order.beat.title}</td>
+              <td className="border px-4 py-2">{order.license.name}</td>
+              <td className="border px-4 py-2">{order.user.name || order.user.email}</td>
+              <td className="border px-4 py-2">£{(order.amount / 100).toFixed(2)}</td>
+              <td className="border px-4 py-2">{order.status}</td>
+              <td className="border px-4 py-2">{new Date(order.createdAt).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
