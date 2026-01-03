@@ -1,24 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { prisma } from "@/lib/prisma"; // Named export
+import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2022-11-15",
-});
+/**
+ * Runtime-only Stripe initializer
+ */
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return null;
+
+  return new Stripe(key, {
+    apiVersion: "2022-11-15",
+  });
+}
 
 export async function POST(req: NextRequest) {
-  const signature = req.headers.get("stripe-signature")!;
+  const stripe = getStripe();
+
+  if (!stripe) {
+    console.warn("Stripe webhook called without STRIPE_SECRET_KEY");
+    return NextResponse.json(
+      { error: "Stripe not configured" },
+      { status: 500 }
+    );
+  }
+
+  const signature = req.headers.get("stripe-signature");
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!signature || !webhookSecret) {
+    return NextResponse.json(
+      { error: "Missing Stripe webhook signature or secret" },
+      { status: 400 }
+    );
+  }
+
   const body = await req.text();
 
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
     console.error("Webhook signature verification failed:", err);
     return NextResponse.json(
@@ -38,7 +61,11 @@ export async function POST(req: NextRequest) {
   const productId = metadata.productId;
   const licenseId = metadata.licenseId;
   const quantity = metadata.quantity ? parseInt(metadata.quantity, 10) : 1;
-  const email = session.customer_email!;
+  const email = session.customer_email;
+
+  if (!email) {
+    return NextResponse.json({ error: "Missing customer email" }, { status: 400 });
+  }
 
   try {
     let orderId: string | null = null;
@@ -72,7 +99,7 @@ export async function POST(req: NextRequest) {
           stripeSessionId: session.id,
           email,
           amount: session.amount_total ?? 0,
-          currency: session.currency ?? "usd",
+          currency: session.currency ?? "gbp",
           productType: "music",
           productId,
           status: "paid",
@@ -84,9 +111,12 @@ export async function POST(req: NextRequest) {
 
     // ---------------- PHYSICAL PRODUCT ----------------
     if (productType === "product") {
+      if (!productId) throw new Error("Missing product ID");
+
       const product = await prisma.product.findUnique({
         where: { id: productId },
       });
+
       if (!product || (product.stock ?? 0) < quantity) {
         throw new Error("Insufficient stock");
       }
@@ -101,7 +131,7 @@ export async function POST(req: NextRequest) {
           stripeSessionId: session.id,
           email,
           amount: session.amount_total ?? 0,
-          currency: session.currency ?? "usd",
+          currency: session.currency ?? "gbp",
           productType: "product",
           productId,
           quantity,
@@ -124,7 +154,6 @@ export async function POST(req: NextRequest) {
         `,
       });
     }
-
   } catch (err: any) {
     console.error("Stripe webhook error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

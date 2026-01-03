@@ -1,19 +1,24 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+/**
+ * Runtime-only Stripe creator
+ */
+function getStripe() {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) return null;
 
-// 🚨 Prevent build-time crash on Vercel
-if (!stripeSecretKey) {
-  console.warn("STRIPE_SECRET_KEY is not set. Stripe API disabled at build time.");
+  return new Stripe(stripeSecretKey, {
+    apiVersion: "2025-11-01",
+  });
 }
 
-const stripe = stripeSecretKey
-  ? new Stripe(stripeSecretKey, { apiVersion: "2025-11-01" })
-  : null;
-
+// =======================
 // GET: retrieve checkout session
+// =======================
 export async function GET(req: Request) {
+  const stripe = getStripe();
+
   if (!stripe) {
     return NextResponse.json(
       { error: "Stripe is not configured" },
@@ -51,8 +56,12 @@ export async function GET(req: Request) {
   }
 }
 
+// =======================
 // POST: create checkout session
+// =======================
 export async function POST(req: Request) {
+  const stripe = getStripe();
+
   if (!stripe) {
     return NextResponse.json(
       { error: "Stripe is not configured" },
@@ -80,5 +89,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-

@@ -1,13 +1,30 @@
-// app/api/checkout/create-session/route.tsx
+// app/api/checkout/create-session/route.ts
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2022-11-15",
-});
+/**
+ * Create Stripe ONLY at runtime (never at build time)
+ */
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return null;
+
+  return new Stripe(key, {
+    apiVersion: "2022-11-15",
+  });
+}
 
 export async function POST(req: Request) {
+  const stripe = getStripe();
+
+  if (!stripe) {
+    return NextResponse.json(
+      { error: "Stripe is not configured" },
+      { status: 500 }
+    );
+  }
+
   try {
     const { beatId, licenseName, quantity } = await req.json();
 
@@ -19,12 +36,15 @@ export async function POST(req: Request) {
     }
 
     // Fetch beat details from the database
-    const beat = await prisma.beat.findUnique({ where: { id: beatId } });
+    const beat = await prisma.beat.findUnique({
+      where: { id: beatId },
+    });
+
     if (!beat) {
       return NextResponse.json({ error: "Beat not found" }, { status: 404 });
     }
 
-    // Calculate total price (assuming beat.price exists in GBP)
+    // Price in GBP (pounds → pence)
     const totalAmount = beat.price * quantity;
 
     // Create Stripe Checkout session
@@ -33,9 +53,11 @@ export async function POST(req: Request) {
       line_items: [
         {
           price_data: {
-            currency: "GBP",
-            product_data: { name: `${beat.title} - ${licenseName}` },
-            unit_amount: totalAmount * 100, // in pence/cents
+            currency: "gbp",
+            product_data: {
+              name: `${beat.title} - ${licenseName}`,
+            },
+            unit_amount: totalAmount * 100,
           },
           quantity: 1,
         },

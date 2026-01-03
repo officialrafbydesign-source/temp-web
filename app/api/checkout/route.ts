@@ -1,14 +1,29 @@
-// app/api/checkout/route.ts
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * Runtime-only Stripe initializer
+ */
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return null;
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2022-11-15",
-});
+  return new Stripe(key, {
+    apiVersion: "2022-11-15",
+  });
+}
 
 export async function POST(req: Request) {
+  const stripe = getStripe();
+
+  if (!stripe) {
+    return NextResponse.json(
+      { error: "Stripe is not configured" },
+      { status: 500 }
+    );
+  }
+
   try {
     const { productId, productType, licenseId } = await req.json();
 
@@ -18,7 +33,7 @@ export async function POST(req: Request) {
 
     // ---------------- BEATS ----------------
     if (productType === "beat") {
-      const license = await prisma.License.findUnique({
+      const license = await prisma.license.findUnique({
         where: { id: licenseId },
         include: { beat: true },
       });
@@ -32,7 +47,7 @@ export async function POST(req: Request) {
 
     // ---------------- MUSIC ----------------
     if (productType === "music") {
-      item = await prisma.MusicProduct.findUnique({
+      item = await prisma.musicProduct.findUnique({
         where: { id: productId },
       });
 
@@ -44,7 +59,7 @@ export async function POST(req: Request) {
 
     // ---------------- PHYSICAL ----------------
     if (productType === "product") {
-      item = await prisma.Product.findUnique({
+      item = await prisma.product.findUnique({
         where: { id: productId },
       });
 
@@ -54,7 +69,6 @@ export async function POST(req: Request) {
       title = item.title;
     }
 
-    // Create Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
