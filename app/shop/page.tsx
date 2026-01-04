@@ -1,17 +1,10 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
-
-// ✅ Dynamic Prisma import to avoid Vercel build-time errors
-let prisma: typeof import("@/lib/prisma").prisma | null = null;
-
-if (typeof window === "undefined") {
-  prisma = (await import("@/lib/prisma")).prisma;
-}
+import { prisma } from "@/lib/prisma";
 
 export default async function ShopPage() {
-  if (!prisma) {
-    return <div>Prisma not available at build time</div>;
-  }
-
   const products = await prisma.product.findMany({
     include: { variants: true },
   });
@@ -19,11 +12,15 @@ export default async function ShopPage() {
   return (
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-4xl font-bold mb-6">🎵 Music Shop</h1>
-      <p className="text-gray-600 mb-8">Beat packs, sample kits, merch & more.</p>
+      <p className="text-gray-600 mb-8">
+        Beat packs, sample kits, merch & more.
+      </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => {
-          const priceGBP = product.price ? `£${product.price.toFixed(2)}` : "Free";
+          const priceGBP = product.price
+            ? `£${product.price.toFixed(2)}`
+            : "Free";
 
           return (
             <Link
