@@ -1,25 +1,52 @@
-// app/layout.tsx
-import "./globals.css";
-import { CartProvider } from "./context/CartContext";
-import Header from "./components/Layout/Header";
-import Footer from "./components/Layout/Footer";
+import type {
+  Metadata,
+} from "next";
 
-export const metadata = {
-  title: "My Business Suite",
-  description: "Unified business platform",
+import type {
+  ReactNode,
+} from "react";
+
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+import CookieConsent from "@/components/layout/CookieConsent";
+import BottomPlayer from "@/components/player/BottomPlayer";
+
+import {
+  CartProvider,
+} from "@/app/context/CartContext";
+
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title:
+    "RAF By Design",
+
+  description:
+    "Music, clothing, and digital products",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+type RootLayoutProps = {
+  children: ReactNode;
+};
+
+export default function RootLayout({
+  children,
+}: RootLayoutProps) {
   return (
     <html lang="en">
-      <body>
+      <body className="min-h-screen text-white flex flex-col bg-black antialiased selection:bg-red-600 selection:text-black">
         <CartProvider>
-          {/* Include the Header */}
-          <Header />
-          {/* Main Content */}
-          <main>{children}</main>
-          {/* Include the Footer */}
+          <Navbar />
+
+          <main className="relative z-10 flex-grow w-full">
+            {children}
+          </main>
+
           <Footer />
+
+          <BottomPlayer />
+
+          <CookieConsent />
         </CartProvider>
       </body>
     </html>

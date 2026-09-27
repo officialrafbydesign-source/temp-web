@@ -1,91 +1,149 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useCart } from "@/app/context/CartContext";
 import { useRouter } from "next/navigation";
 
-type CartItem = {
-  product: {
-    id: string;
-    title: string;
-    price: number;
-  };
-  quantity: number;
-};
-
 export default function CartSidebar() {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const { cart, removeFromCart } = useCart();
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Load cart from localStorage
-  useEffect(() => {
-    const storedCart = JSON.parse(localStorage.getItem("cart") || "[]");
-    setCart(storedCart);
-  }, []);
-
-  // Calculate the total cart price
+  // Calculate total price
   const total = cart.reduce(
-    (acc, item) => acc + item.product.price * item.quantity,
+    (acc, item: any) => acc + item.price * (item.quantity || 1),
     0
   );
 
-  // Handle the checkout process
+  // Direct Checkout with Stripe API Route
   const handleCheckout = async () => {
-    const userId = "some-user-id"; // You should get this from your user auth logic
+    if (cart.length === 0 || loading) return;
 
-    const cartData = cart.map(item => ({
-      product: item.product,
-      quantity: item.quantity,
-    }));
+    setLoading(true);
+    setErrorMessage(null);
 
     try {
-      // Send cart data to your backend to create an order
-      const res = await fetch("/api/orders", {
+      // Formats the items array to match what /api/checkout expects
+      const response = await fetch("/api/checkout", {
         method: "POST",
-        body: JSON.stringify({ userId, cart: cartData, amount: total }),
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cart.map((item: any) => ({
+            id: item.id,
+            productId: item.productId || item.id,
+            licenseId: item.licenseId || null,
+            productType: item.productType || item.type || "beat",
+            title: item.title || item.name,
+            price: item.price,
+            quantity: item.quantity || 1,
+            image: item.image || item.artworkUrl || item.imageUrl || "",
+          })),
+        }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (data.error) {
-        console.error("Error creating order:", data.error);
-      } else {
-        console.log("Order created:", data.order.id);
-
-        // Now that the order is created, proceed to checkout (Stripe)
-        window.location.href = "/checkout"; // Redirect to Stripe checkout page (or success page)
+      if (!response.ok) {
+        throw new Error(data.error || "Checkout failed");
       }
-    } catch (err) {
-      console.error("Error during checkout:", err);
+
+      // Redirect user directly to Stripe Hosted Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No payment URL received.");
+      }
+    } catch (err: any) {
+      console.error("Checkout error:", err);
+      setErrorMessage(err.message || "An error occurred during checkout.");
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fixed right-0 top-0 w-80 p-4 bg-white shadow-lg">
-      <h2 className="text-xl font-semibold">Your Cart</h2>
+    <div className="fixed right-0 top-0 w-80 md:w-96 p-6 bg-zinc-950 text-white h-full shadow-2xl z-50 border-l-4 border-black flex flex-col justify-between font-mono">
+
       <div>
-        {cart.length === 0 && <p>Your cart is empty.</p>}
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b-4 border-black mb-6">
+          <h2 className="text-lg font-black uppercase text-red-500 tracking-wider">
+            YOUR CART ({cart.reduce((acc, i: any) => acc + (i.quantity || 1), 0)})
+          </h2>
+        </div>
 
-        {cart.map((item, index) => (
-          <div key={index} className="flex justify-between mb-4">
-            <div>{item.product.title}</div>
-            <div>£{item.product.price.toFixed(2)} x {item.quantity}</div>
+        {/* Error message display */}
+        {errorMessage && (
+          <div className="mb-4 p-2 bg-red-900/50 border-2 border-red-600 rounded text-xs text-red-300">
+            ⚠️ {errorMessage}
           </div>
-        ))}
+        )}
 
-        <div className="mt-4 text-lg font-semibold">
-          Total: £{total.toFixed(2)}
+        {/* Empty State */}
+        {cart.length === 0 && (
+          <p className="text-zinc-500 text-sm text-center py-12">
+            Your cart is empty.
+          </p>
+        )}
+
+        {/* Cart Item List */}
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          {cart.map((item: any, idx: number) => (
+            <div
+              key={`${item.id}-${item.licenseId || idx}`}
+              className="flex justify-between items-center bg-zinc-900 border-2 border-black p-3 rounded"
+            >
+              <div className="flex-1 pr-2">
+                <p className="text-xs font-bold text-zinc-100 line-clamp-1">
+                  {item.title || item.name}
+                </p>
+
+                {item.licenseName && (
+                  <p className="text-[10px] text-red-400 font-bold uppercase">
+                    [{item.licenseName}]
+                  </p>
+                )}
+
+                <p className="text-xs text-zinc-400 font-black mt-1">
+                  £{item.price.toFixed(2)} × {item.quantity || 1}
+                </p>
+              </div>
+
+              <button
+                onClick={() => removeFromCart(item.id)}
+                className="text-red-500 hover:text-red-400 text-sm font-black p-1"
+                title="Remove item"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer / Total & Checkout Buttons */}
+      <div className="border-t-4 border-black pt-4 mt-4">
+        <div className="flex justify-between items-center text-sm font-black uppercase mb-4">
+          <span className="text-zinc-400">Total:</span>
+          <span className="text-xl text-red-500">£{total.toFixed(2)}</span>
         </div>
 
         <button
-          className="bg-green-600 text-white px-4 py-2 mt-6 rounded hover:bg-green-700 w-full"
           onClick={handleCheckout}
+          disabled={cart.length === 0 || loading}
+          className="w-full bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 text-black disabled:text-zinc-600 font-black py-3 rounded border-2 border-black transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] uppercase text-xs tracking-wider flex items-center justify-center gap-2"
         >
-          Proceed to Payment
+          {loading ? (
+            <>
+              <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              <span>CONNECTING TO STRIPE...</span>
+            </>
+          ) : (
+            <span>PROCEED TO CHECKOUT ↗</span>
+          )}
         </button>
       </div>
+
     </div>
   );
 }

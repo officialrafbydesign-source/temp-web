@@ -1,0 +1,4 @@
+id,title,genre,artworkUrl,audioUrl,freeDownload
+dark-trap-01,Dark Trap Beat,Trap,/images/mascotmonored.png,/audio/dark-trap.mp3,true
+rage-energy-02,Rage Energy,Rage,/images/mascotmonoyellow.png,/audio/rage-energy.mp3,false
+drill-night-03,Drill Night,Drill,/images/mascotmonoblack.png,/audio/drill-night.mp3,true

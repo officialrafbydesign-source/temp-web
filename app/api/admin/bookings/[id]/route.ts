@@ -1,49 +1,205 @@
-// app/api/admin/bookings/[id]/route.ts
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import {
+  NextResponse,
+} from "next/server";
+import {
+  prisma,
+} from "@/lib/prisma";
+import {
+  authorizeAdminApi,
+} from "@/lib/adminApi";
 
-// PATCH: update booking status
+export const dynamic =
+  "force-dynamic";
+
+type BookingRouteContext = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+function jsonResponse(
+  body: unknown,
+  status = 200
+) {
+  return NextResponse.json(
+    body,
+    {
+      status,
+      headers: {
+        "Cache-Control":
+          "private, no-store",
+      },
+    }
+  );
+}
+
+function isRecordNotFoundError(
+  error: unknown
+) {
+  return (
+    error !== null &&
+    typeof error ===
+      "object" &&
+    "code" in error &&
+    error.code ===
+      "P2025"
+  );
+}
+
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  {
+    params,
+  }: BookingRouteContext
 ) {
+  const authorization =
+    await authorizeAdminApi();
+
+  if (
+    !authorization.authorized
+  ) {
+    return authorization.response;
+  }
+
   try {
-    const { id } = await params;
-    const { status } = await req.json();
+    const {
+      id,
+    } =
+      await params;
 
-    const updatedBooking = await prisma.booking.update({
-      where: { id },
-      data: { status },
-    });
+    const body =
+      await req.json();
 
-    return NextResponse.json(updatedBooking);
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json(
-      { error: "Failed to update booking" },
-      { status: 500 }
+    const status =
+      typeof body.status ===
+        "string"
+        ? body.status.trim()
+        : "";
+
+    if (
+      !id ||
+      !status ||
+      status.length > 50
+    ) {
+      return jsonResponse(
+        {
+          error:
+            "A valid booking status is required",
+        },
+        400
+      );
+    }
+
+    const updatedBooking =
+      await prisma.booking.update({
+        where: {
+          id,
+        },
+
+        data: {
+          status,
+        },
+      });
+
+    return jsonResponse(
+      updatedBooking
+    );
+  } catch (error) {
+    console.error(
+      "PATCH /api/admin/bookings/[id] error:",
+      error
+    );
+
+    if (
+      isRecordNotFoundError(
+        error
+      )
+    ) {
+      return jsonResponse(
+        {
+          error:
+            "Booking not found",
+        },
+        404
+      );
+    }
+
+    return jsonResponse(
+      {
+        error:
+          "Failed to update booking",
+      },
+      500
     );
   }
 }
 
-// DELETE: delete booking
 export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  _req: Request,
+  {
+    params,
+  }: BookingRouteContext
 ) {
+  const authorization =
+    await authorizeAdminApi();
+
+  if (
+    !authorization.authorized
+  ) {
+    return authorization.response;
+  }
+
   try {
-    const { id } = await params;
+    const {
+      id,
+    } =
+      await params;
+
+    if (!id) {
+      return jsonResponse(
+        {
+          error:
+            "Booking ID is required",
+        },
+        400
+      );
+    }
 
     await prisma.booking.delete({
-      where: { id },
+      where: {
+        id,
+      },
     });
 
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json(
-      { error: "Failed to delete booking" },
-      { status: 500 }
+    return jsonResponse({
+      success: true,
+    });
+  } catch (error) {
+    console.error(
+      "DELETE /api/admin/bookings/[id] error:",
+      error
+    );
+
+    if (
+      isRecordNotFoundError(
+        error
+      )
+    ) {
+      return jsonResponse(
+        {
+          error:
+            "Booking not found",
+        },
+        404
+      );
+    }
+
+    return jsonResponse(
+      {
+        error:
+          "Failed to delete booking",
+      },
+      500
     );
   }
 }

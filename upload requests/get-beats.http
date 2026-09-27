@@ -1,0 +1,2 @@
+### Get All Beats
+GET http://localhost:3000/api/admin/beats

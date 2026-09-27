@@ -8,57 +8,145 @@ datasource db {
 }
 
 //////////////////////
+// ENUMS
+//////////////////////
+
+enum OrderStatus {
+  pending
+  paid
+  processing
+  shipped
+  delivered
+  cancelled
+}
+
+enum ProductType {
+  beat
+  music
+  service
+  design
+  clothing
+  merch
+}
+
+enum MusicType {
+  album
+  ep
+  mixtape
+  single
+  compilation
+}
+
+enum UserRole {
+  customer
+  admin
+}
+
+//////////////////////
 // USERS
 //////////////////////
 
 model User {
-  id         String          @id @default(cuid())
-  name       String
-  email      String          @unique
+  id              String    @id @default(cuid())
+  name            String?
+  email           String    @unique
+  password        String?
+  emailVerifiedAt DateTime?
+  sessionVersion  Int       @default(0)
+  role            UserRole  @default(customer)
+  createdAt       DateTime  @default(now())
+
   beatOrders BeatOrder[]
   bookings   Booking[]
   enquiries  DesignEnquiry[]
+  orders     Order[]
+  favorites  Favorite[]
 }
 
 //////////////////////
-// BEAT STORE (BeatStars-style)
+// AUTHENTICATION SECURITY
+//////////////////////
+
+model AuthRateLimit {
+  id              String    @id @default(cuid())
+  key             String    @unique
+  attempts        Int       @default(0)
+  windowStartedAt DateTime  @default(now())
+  blockedUntil    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([updatedAt])
+  @@index([blockedUntil])
+}
+
+//////////////////////
+// BEATS SYSTEM
 //////////////////////
 
 model Beat {
-  id           String   @id @default(cuid())
-  title        String
-  genre        String?
-  bpm          Int?
-  key          String?
-  description  String?
-  artworkUrl   String?
-  audioUrl     String?
-  fileUrl      String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String  @id @default(cuid())
+  title       String
+  genre       String?
+  bpm         Int?
+  key         String?
+  description String?
+
+  artworkUrl      String?
+  mascotImage     String?
+  backgroundImage String?
+
+  audioUrl   String?
+  fileUrl    String?
+  youtubeUrl String?
+
+  tags         String[]
+  freeDownload Boolean  @default(false)
+
+  isAvailable     Boolean   @default(true)
+  exclusiveSoldAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   licenses     License[]
   beatOrders   BeatOrder[]
-  downloadLogs DownloadLog[]   // 👈 ADD THIS
-  freeDownload Boolean @default(false)
+  downloadLogs DownloadLog[]
+  favorites    Favorite[]
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  beatId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beat Beat @relation(fields: [beatId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, beatId])
 }
 
 model License {
-  id         String      @id @default(cuid())
-  name       String
-  price      Int // cents
-  beatId     String
-  beat       Beat        @relation(fields: [beatId], references: [id])
+  id      String  @id @default(cuid())
+  name    String
+  price   Int
+  fileUrl String?
+
+  beatId String
+  beat   Beat   @relation(fields: [beatId], references: [id])
+
   beatOrders BeatOrder[]
 }
 
 model BeatOrder {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   userId    String
   beatId    String
   licenseId String
   amount    Int
-  status    String
+  status    String @default("pending")
+
   createdAt DateTime @default(now())
 
   user    User    @relation(fields: [userId], references: [id])
@@ -66,84 +154,189 @@ model BeatOrder {
   license License @relation(fields: [licenseId], references: [id])
 }
 
-//////////////////////
-// DOWNLOAD LOGS
-//////////////////////
-
 model DownloadLog {
   id        String   @id @default(cuid())
   beatId    String
   userEmail String?
   ip        String?
-  type      String // "free" | "licensed"
+  type      String
   createdAt DateTime @default(now())
 
   beat Beat @relation(fields: [beatId], references: [id])
 }
 
 //////////////////////
-// MUSIC STORE (iTunes-style)
+// MUSIC SYSTEM
 //////////////////////
 
 model Artist {
-  id    String @id @default(cuid())
-  name  String
-  songs Song[]
+  id   String @id @default(cuid())
+  name String @unique
+
+  releases Release[]
+  songs    Song[]
+}
+
+model Release {
+  id          String    @id @default(cuid())
+  title       String
+  type        MusicType
+  coverUrl    String?
+  description String?
+  genre       String?
+  upc         String?
+  tuneCode    String?
+  releaseDate DateTime?
+  catalogNo   String?
+  featured    Boolean   @default(false)
+
+  artistId String
+  artist   Artist @relation(fields: [artistId], references: [id])
+
+  songs   Song[]
+  product MusicProduct?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Song {
-  id           String        @id @default(cuid())
-  title        String
-  genre        String
-  duration     Int? // seconds
-  artistId     String
-  artist       Artist        @relation(fields: [artistId], references: [id])
-  musicProduct MusicProduct?
+  id               String  @id @default(cuid())
+  title            String
+  duration         Int?
+  audioUrl         String?
+  fileUrl          String?
+  isrc             String?
+  trackNo          Int?
+  price            Float?
+  sellIndividually Boolean @default(false)
+
+  artistId String
+  artist   Artist @relation(fields: [artistId], references: [id])
+
+  releaseId String
+  release   Release @relation(fields: [releaseId], references: [id])
+
+  createdAt DateTime @default(now())
 }
 
 model MusicProduct {
-  id     String @id @default(cuid())
-  songId String @unique
-  song   Song   @relation(fields: [songId], references: [id])
+  id String @id @default(cuid())
 
-  price     Int // cents
-  coverUrl  String
+  releaseId String  @unique
+  release   Release @relation(fields: [releaseId], references: [id])
+
+  price    Float
+  itemType String
+  stock    Int?
+
+  fileUrl String?
+
   createdAt DateTime @default(now())
-
-  variants Variant[]
-}
-
-model Variant {
-  id             String       @id @default(cuid())
-  musicProductId String
-  musicProduct   MusicProduct @relation(fields: [musicProductId], references: [id])
-
-  format String // mp3, wav, vinyl, cd
-  stock  Int?
 }
 
 //////////////////////
-// SERVICES
+// CLOTHING / PHYSICAL PRODUCTS
 //////////////////////
 
-model Service {
-  id          String    @id @default(cuid())
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  brand       String?
+  range       String?
+  category    String?
+  description String?
+  price       Int
+  salePrice   Int?
+  imageUrls   String[]
+  sku         String?
+  tags        String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants ProductVariant[]
+}
+
+model ProductVariant {
+  id    String  @id @default(cuid())
+  size  String
+  color String
+  stock Int
+  sku   String?
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+//////////////////////
+// MUSIC SERVICES & BOOKINGS
+//////////////////////
+
+model MusicService {
+  id          String  @id @default(cuid())
   name        String
   description String?
   price       Int
-  bookings    Booking[]
+
+  bookings Booking[]
+
+  // Preserve the existing Supabase table named "Service".
+  @@map("Service")
 }
 
 model Booking {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   userId    String
   serviceId String
-  date      DateTime
-  status    String   @default("pending")
-  createdAt DateTime @default(now())
 
-  user    User    @relation(fields: [userId], references: [id])
-  service Service @relation(fields: [serviceId], references: [id])
+  date   DateTime?
+  status String    @default("pending")
+
+  companyBrand      String?
+  projectType       String?
+  musicTypes        String[] @default([])
+  referenceLinks    String?
+  referenceFileName String?
+  referenceFileUrl  String?
+  deadlineText      String?
+
+  recordingHours     String?
+  recordingDate      DateTime?
+  editOptions        String?
+  editDetails        String?
+  inStudioSession    String?
+  studioSessionDate  DateTime?
+  otherAudioService  String?
+  projectDescription String?
+
+  adminNotes String?
+  approvedAt DateTime?
+  rejectedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user    User         @relation(fields: [userId], references: [id])
+  service MusicService @relation(fields: [serviceId], references: [id])
+}
+
+//////////////////////
+// DESIGN SERVICES
+//////////////////////
+
+model DesignService {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  price       Int
+  imageUrl    String?
+  category    String  @default("Design")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
 }
 
 //////////////////////
@@ -151,44 +344,103 @@ model Booking {
 //////////////////////
 
 model DesignEnquiry {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String
-  details   String
-  fileUrl   String?
-  status    String   @default("new")
+  id      String @id @default(cuid())
+  userId  String
+  title   String
+  details String
+
+  services String[]
+  fileUrls String[]
+
+  companyBrand   String?
+  deadline       DateTime?
+  extraRevisions Boolean   @default(false)
+  paymentOption  String?
+  totalPrice     Float?
+  dueNow         Float?
+
+  status     String    @default("new")
+  adminNotes String?
+  approvedAt DateTime?
+  rejectedAt DateTime?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 }
 
+model BookingDay {
+  id     String   @id @default(cuid())
+  date   DateTime
+  area   String
+  status String
+  note   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date, area])
+}
+
 //////////////////////
-// UNIVERSAL ORDERS (Stripe-confirmed)
+// ORDERS & FULFILLMENT
 //////////////////////
 
 model Order {
-  id              String   @id @default(cuid())
-  stripeSessionId String   @unique
+  id              String  @id @default(cuid())
+  stripeSessionId String? @unique
 
-  email    String
+  userId String?
+  email  String?
+
   amount   Int
-  currency String
+  currency String @default("gbp")
 
-  // What was purchased
-  productType String // "beat" | "music" | "product"
+  // Legacy fields retained for existing orders and code.
+  productType ProductType?
   productId   String?
   licenseId   String?
+  variantId   String?
 
-  // Order lifecycle
-  status    String   @default("paid") 
-  // paid | processing | shipped | delivered | cancelled
+  status   OrderStatus @default(pending)
+  quantity Int?        @default(1)
 
-  // Physical fulfillment (only for productType = "product")
-  quantity        Int?      // null for beats/music
+  shippingAddress Json?
   trackingNumber  String?
   carrier         String?
   shippedAt       DateTime?
 
+  downloadUrl    String?
+  contractPdfUrl String?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User?       @relation(fields: [userId], references: [id])
+  items OrderItem[]
 }
 
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+
+  productType ProductType
+  productId   String?
+  beatId      String?
+  licenseId   String?
+  variantId   String?
+
+  title      String
+  unitAmount Int
+  quantity   Int    @default(1)
+
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([beatId])
+  @@index([licenseId])
+  @@index([variantId])
+}

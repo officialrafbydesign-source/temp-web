@@ -1,19 +1,36 @@
 import path from "path";
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
+  turbopack: {},
+
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
+      {
+        protocol: "https",
+        hostname: "res-console.cloudinary.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.cloudflare.com",
+      },
+    ],
   },
 
   webpack(config) {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
-      "@": path.resolve(__dirname, "app"), // <— point @ to the 'app' folder
+      "@": path.resolve(
+        process.cwd(),
+        "app"
+      ),
     };
+
     return config;
   },
 };

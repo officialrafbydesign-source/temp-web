@@ -1,82 +1,192 @@
-// app/api/music/[id]/download/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
+
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import fs from "fs";
-import { logDownload } from "@/lib/downloadLogger";
+
+export const dynamic =
+  "force-dynamic";
+
+type MusicDownloadRouteContext = {
+  params: Promise<{
+    id: string;
+  }>;
+};
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: MusicDownloadRouteContext
 ) {
-  const { id: productId } = await params;
-  const userEmail = req.headers.get("x-user-email");
+  try {
+    const currentUser =
+      await getCurrentUser();
 
-  if (!userEmail) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    if (!currentUser) {
+      const loginUrl =
+        new URL(
+          "/login",
+          req.url
+        );
 
-  const product = await prisma.musicProduct.findUnique({
-    where: { id: productId },
-    include: { song: true, variants: true },
-  });
+      loginUrl.searchParams.set(
+        "returnTo",
+        req.nextUrl.pathname
+      );
 
-  if (!product || !product.fileUrl) {
+      return NextResponse.redirect(
+        loginUrl
+      );
+    }
+
+    const { id: releaseId } =
+      await params;
+
+    const musicProduct =
+      await prisma.musicProduct.findUnique({
+        where: {
+          releaseId,
+        },
+
+        select: {
+          id: true,
+          itemType: true,
+        },
+      });
+
+    if (!musicProduct) {
+      return NextResponse.json(
+        {
+          error:
+            "Music product not found",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    if (
+      String(
+        musicProduct.itemType
+      ).toUpperCase() ===
+      "PHYSICAL"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Physical music products do not have a digital download",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const order =
+      await prisma.order.findFirst({
+        where: {
+          userId:
+            currentUser.id,
+
+          status: {
+            in: [
+              "paid",
+              "shipped",
+              "delivered",
+            ],
+          },
+
+          items: {
+            some: {
+              productType:
+                "music",
+
+              productId:
+                musicProduct.id,
+            },
+          },
+        },
+
+        include: {
+          items: {
+            where: {
+              productType:
+                "music",
+
+              productId:
+                musicProduct.id,
+            },
+
+            take: 1,
+          },
+        },
+
+        orderBy: {
+          createdAt:
+            "desc",
+        },
+      });
+
+    const orderItem =
+      order?.items[0];
+
+    if (
+      !order ||
+      !orderItem
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Purchase required",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
+    const secureDownloadUrl =
+      new URL(
+        `/api/account/orders/${encodeURIComponent(
+          order.id
+        )}/items/${encodeURIComponent(
+          orderItem.id
+        )}/download`,
+        req.url
+      );
+
+    const response =
+      NextResponse.redirect(
+        secureDownloadUrl,
+        307
+      );
+
+    response.headers.set(
+      "Cache-Control",
+      "private, no-store"
+    );
+
+    return response;
+  } catch (error) {
+    console.error(
+      "GET /api/music/[id]/download error:",
+      error
+    );
+
     return NextResponse.json(
-      { error: "Music product not found" },
-      { status: 404 }
+      {
+        error:
+          "Unable to prepare this download",
+      },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control":
+            "private, no-store",
+        },
+      }
     );
   }
-
-  // Check user has purchased this product
-  const order = await prisma.order.findFirst({
-    where: {
-      productId,
-      productType: "music",
-      userEmail,
-      status: "paid",
-    },
-  });
-
-  if (!order) {
-    return NextResponse.json(
-      { error: "Purchase required" },
-      { status: 403 }
-    );
-  }
-
-  const format = req.nextUrl.searchParams.get("format") ?? "mp3";
-
-  const variant = product.variants.find(
-    (v) => v.format?.toLowerCase() === format.toLowerCase()
-  );
-
-  if (!variant) {
-    return NextResponse.json(
-      { error: "Format not available" },
-      { status: 404 }
-    );
-  }
-
-  // 🔹 LOG DOWNLOAD
-  await logDownload({
-    productId,
-    userEmail,
-    ip:
-      req.headers.get("x-forwarded-for") ??
-      req.headers.get("x-real-ip") ??
-      "unknown",
-    type: "music",
-  });
-
-  // Read file and send as response
-  const fileBuffer = fs.readFileSync(product.fileUrl);
-  const filename = `${product.song.title}.${format}`;
-
-  return new NextResponse(fileBuffer, {
-    headers: {
-      "Content-Type": "audio/mpeg",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-    },
-  });
 }
-

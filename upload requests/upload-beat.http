@@ -1,0 +1,33 @@
+### Upload Beat 1
+POST http://localhost:3000/api/admin/beats
+Content-Type: application/json
+
+{
+  "title": "The Base (Instrumental)",
+  "genre": "Hip Hop",
+  "bpm": null,
+  "key": "unknown",
+  "description": "slow, atmospheric driving hip hop beat",
+  "coverUrl": "",
+  "audioUrl": "/audio/beatshop/THE_BASE.mp3",
+  "fileUrl": "/audio/beatshop/THE_BASE.mp3",
+  "leasePrice": 2999,
+  "exclusivePrice": 24999
+}
+
+### Upload Beat 2
+POST http://localhost:3000/api/admin/beats
+Content-Type: application/json
+
+{
+  "title": "Eyes Open (Instrumental)",
+  "genre": "Hip Hop",
+  "bpm": null,
+  "key": "unknown",
+  "description": "Energetic beat for rap or dance tracks",
+  "coverUrl": "",
+  "audioUrl": "/audio/beatshop/EYES_OPEN.mp3",
+  "fileUrl": "/audio/beatshop/EYES_OPEN.mp3",
+  "leasePrice": 3999,
+  "exclusivePrice": 29999
+}

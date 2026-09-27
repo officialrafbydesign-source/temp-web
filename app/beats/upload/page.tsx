@@ -39,7 +39,7 @@ export default function UploadBeat() {
       if (data.success) {
         alert("Beat uploaded successfully!");
         // Optionally redirect to marketplace page
-        window.location.href = "/beats";
+        window.location.href = "/beats/store";
       } else {
         alert("Error: " + data.error);
       }

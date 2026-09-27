@@ -1,2 +1,26 @@
 {
+  "security.workspace.trust.untrustedFiles": "open",
+  "terminal.integrated.enableMultiLinePasteWarning": "never",
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "path": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+    }
+  },
+
+  "typescript.disableAutomaticTypeAcquisition": true,
+
+  "files.exclude": {
+    "**/.next": true,
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "**/.next": true,
+    "**/node_modules": true
+  },
+
+  "editor.largeFileOptimizations": true
 }

@@ -1,2 +1,169 @@
-@import "tailwindcss/preflight";
-@import "tailwindcss/utilities";
+@tailwind base;
+
+@tailwind components;
+
+@tailwind utilities;
+
+/* ================= GLOBAL RESET ================= */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: transparent;
+  font-family: "ArialCustom", Arial, sans-serif;
+  color: white;
+}
+
+/* Remove forced centering (this was breaking layouts) */
+
+body {
+  display: block;
+}
+
+/* ================= BOX SIZING ================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ================= FONTS ================= */
+
+/* RAF display font */
+
+@font-face {
+  font-family: "RafFont";
+  src: url("/fonts/RafFontDemo-Regular.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* HipHop100 display font */
+
+@font-face {
+  font-family: "HipHop100Font";
+  src: url("/fonts/DCC - Ash.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Clean readable font */
+
+@font-face {
+  font-family: "ArialCustom";
+  src: url("/fonts/Arial.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Utility font classes */
+
+.font-raf {
+  font-family: "RafFont", sans-serif;
+}
+
+.font-hiphop100 {
+  font-family: "HipHop100Font", "ArialCustom", Arial, sans-serif;
+}
+
+.font-clarity {
+  font-family: "ArialCustom", Arial, sans-serif;
+}
+
+.text-outline-black {
+  -webkit-text-stroke: 2px #000;
+  paint-order: stroke fill;
+}
+
+/* ================= UI COMPONENTS ================= */
+
+/* Buttons */
+
+.ui-btn {
+  @apply px-3 py-1 bg-black/40 hover:bg-black/60 border border-red-600 rounded text-sm text-white transition;
+}
+
+/* ================= DESIGN SERVICES STYLES ================= */
+
+.service-card {
+  @apply bg-blue-950/80 border border-blue-500 rounded-xl p-6 shadow-lg transition hover:scale-[1.02];
+}
+
+.service-title {
+  @apply text-xl font-semibold mb-2 font-raf;
+}
+
+.service-desc {
+  @apply text-white/60 text-sm mb-3 font-clarity;
+}
+
+.service-prices {
+  @apply text-sm space-y-1 font-clarity;
+}
+
+.service-extra {
+  @apply text-xs text-white/50 mt-3 space-y-1 font-clarity;
+}
+
+/* ================= ANIMATIONS ================= */
+
+/* Loading bar */
+
+@keyframes loading-bar {
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
+.animate-loading-bar {
+  animation: loading-bar 0.6s ease-out forwards;
+}
+
+/* ================= MEDIA DEFAULTS ================= */
+
+/* Prevent images from overflowing */
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ================= SCROLLBAR (OPTIONAL STYLE) ================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
