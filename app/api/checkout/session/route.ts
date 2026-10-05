@@ -278,6 +278,7 @@ export async function GET(
             const paymentConfirmed =
               [
                 "paid",
+                "processing",
                 "shipped",
                 "delivered",
               ].includes(

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getPresignedDownloadUrl } from "@/lib/r2";
@@ -62,15 +63,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const user =
-      await getCurrentUser();
-
-    if (!user) {
-      return errorResponse(
-        "You must be signed in to download this purchase",
-        401
-      );
-    }
+    const user = await getCurrentUser();
 
     const order =
       await prisma.order.findFirst({
@@ -78,12 +71,10 @@ export async function GET(req: Request) {
           stripeSessionId:
             sessionId,
 
-          userId:
-            user.id,
-
           status: {
             in: [
               "paid",
+              "processing",
               "shipped",
               "delivered",
             ],
@@ -113,6 +104,26 @@ export async function GET(req: Request) {
         "Download not found",
         404
       );
+    }
+
+    if (order.userId && order.userId !== user?.id) {
+      return errorResponse("Download not found", 404);
+    }
+
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+      return errorResponse("Download could not be prepared", 500);
+    }
+
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: "2026-01-28.clover",
+    });
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (
+      session.payment_status !== "paid" ||
+      session.metadata?.orderId !== order.id
+    ) {
+      return errorResponse("Payment is not confirmed", 403);
     }
 
     let storedFileReference:
@@ -323,7 +334,7 @@ export async function GET(req: Request) {
               downloadBeatId,
 
             userEmail:
-              user.email,
+              user?.email || order.email || "guest",
 
             ip,
 

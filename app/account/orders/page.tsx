@@ -45,7 +45,7 @@ export default async function AccountOrdersPage() {
     where: {
       userId: user.id,
       status: {
-        in: ["paid", "shipped", "delivered", "cancelled"],
+        in: ["paid", "processing", "shipped", "delivered", "cancelled"],
       },
     },
     include: {

@@ -134,14 +134,12 @@ async function ensureExclusiveBeatsUnavailable(beatIds: string[]) {
 async function sendFulfillmentEmail({
   toEmail,
   orderId,
-  productType,
-  productTitle,
+  items,
   downloadUrl,
 }: {
   toEmail: string;
   orderId: string;
-  productType: string;
-  productTitle: string;
+  items: Array<{ title: string; quantity: number }>;
   downloadUrl?: string;
 }) {
   const resendApiKey = process.env.RESEND_API_KEY;
@@ -155,12 +153,16 @@ async function sendFulfillmentEmail({
 
   try {
     const resend = new Resend(resendApiKey);
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+    const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[character] || character);
+    const itemList = items.map((item) => `<li>${escapeHtml(item.title)} × ${item.quantity}</li>`).join("");
 
-    await resend.emails.send({
-      from: "Orders <onboarding@resend.dev>",
+    const result = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || "Orders <onboarding@resend.dev>",
       to: [toEmail],
-      subject: `Order Confirmed: ${productTitle} [Ref #${orderId.slice(-6)}]`,
+      subject: `Order Confirmed [Ref #${orderId.slice(-6)}]`,
       html: `
         <div style="background-color: #000; color: #fff; font-family: monospace; padding: 32px; border: 4px solid #000;">
           <h1 style="color: #ef4444; text-transform: uppercase; font-size: 24px; margin-bottom: 8px;">
@@ -172,10 +174,10 @@ async function sendFulfillmentEmail({
 
           <div style="background-color: #18181b; border: 2px solid #000; padding: 16px; margin-bottom: 24px;">
             <p style="margin: 0; font-size: 14px; font-weight: bold; color: #fff;">
-              ITEM: ${productTitle}
+              ITEMS: <ul>${itemList}</ul>
             </p>
             <p style="margin: 4px 0 0 0; font-size: 10px; color: #71717a; text-transform: uppercase;">
-              TYPE: ${productType} | ORDER ID: ${orderId}
+              ORDER ID: ${escapeHtml(orderId)}
             </p>
           </div>
 
@@ -197,6 +199,11 @@ async function sendFulfillmentEmail({
         </div>
       `,
     });
+
+    if (result.error) {
+      console.error("[Resend Error] Failed to send fulfillment email:", result.error);
+      return;
+    }
 
     console.log(`[Resend Success] Confirmation email sent to ${toEmail}`);
   } catch (emailErr) {
@@ -276,9 +283,18 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      if (
+        existingOrder.stripeSessionId !== session.id ||
+        session.amount_total !== existingOrder.amount ||
+        session.currency?.toLowerCase() !== existingOrder.currency.toLowerCase()
+      ) {
+        console.error(`Checkout session does not match order ${existingOrder.id}`);
+        return NextResponse.json({ error: "Order mismatch" }, { status: 400 });
+      }
+
       const exclusiveBeatIds = await getExclusiveBeatIds(existingOrder);
 
-      if (existingOrder.status === "paid") {
+      if (["paid", "processing", "shipped", "delivered"].includes(existingOrder.status)) {
         await ensureExclusiveBeatsUnavailable(exclusiveBeatIds);
 
         console.log(
@@ -293,6 +309,8 @@ export async function POST(req: NextRequest) {
         session.customer_email ??
         existingOrder.email;
 
+      const shippingDetails = session.collected_information?.shipping_details;
+
       const soldAt = new Date();
 
       const updatedOrder = await prisma.$transaction(async (tx) => {
@@ -302,6 +320,7 @@ export async function POST(req: NextRequest) {
             status: "paid",
             stripeSessionId: session.id,
             email: customerEmail,
+            ...(shippingDetails ? { shippingAddress: JSON.parse(JSON.stringify(shippingDetails)) } : {}),
           },
           include: {
             items: true,
@@ -350,9 +369,8 @@ export async function POST(req: NextRequest) {
         updatedOrder.productType
       );
 
-      const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-      const receiptPageUrl = `${siteUrl}/checkout/success?order=${updatedOrder.id}`;
+      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+      const receiptPageUrl = `${siteUrl}/checkout/success?session_id=${encodeURIComponent(session.id)}`;
 
       if (!customerEmail) {
         console.warn(
@@ -362,58 +380,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
-      switch (updatedOrder.productType) {
-        case "beat":
-          console.log(
-            `[Fulfillment] Delivering Beat ID: ${updatedOrder.productId}`
-          );
-          await sendFulfillmentEmail({
-            toEmail: customerEmail,
-            orderId: updatedOrder.id,
-            productType: "beat",
-            productTitle: "Beat License & Audio Files",
-            downloadUrl: receiptPageUrl,
-          });
-          break;
-
-        case "music":
-          console.log(
-            `[Fulfillment] Preparing release download for ID: ${updatedOrder.productId}`
-          );
-          await sendFulfillmentEmail({
-            toEmail: customerEmail,
-            orderId: updatedOrder.id,
-            productType: "music",
-            productTitle: "Music Release Download",
-            downloadUrl: receiptPageUrl,
-          });
-          break;
-
-        case "design":
-        case "service":
-          console.log(
-            `[Fulfillment] Service order confirmed for ID: ${updatedOrder.productId}`
-          );
-          await sendFulfillmentEmail({
-            toEmail: customerEmail,
-            orderId: updatedOrder.id,
-            productType: "design service",
-            productTitle: "Design Service Booking Confirmation",
-            downloadUrl: receiptPageUrl,
-          });
-          break;
-
-        default:
-          console.log(`[Fulfillment] General order processed: ${updatedOrder.id}`);
-          await sendFulfillmentEmail({
-            toEmail: customerEmail,
-            orderId: updatedOrder.id,
-            productType: "order",
-            productTitle: "Order Receipt",
-            downloadUrl: receiptPageUrl,
-          });
-          break;
-      }
+      await sendFulfillmentEmail({
+        toEmail: customerEmail,
+        orderId: updatedOrder.id,
+        items: updatedOrder.items.map(({ title, quantity }) => ({ title, quantity })),
+        downloadUrl: receiptPageUrl,
+      });
     } catch (err: any) {
       console.error("Webhook DB update error:", err);
       return NextResponse.json(

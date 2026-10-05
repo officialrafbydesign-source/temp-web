@@ -122,8 +122,7 @@ function SuccessContent() {
           "paid";
 
         const orderIsPaid =
-          data.order_status ===
-          "paid";
+          ["paid", "processing", "shipped", "delivered"].includes(data.order_status);
 
         const shouldCheckAgain =
           paymentIsPaid &&
@@ -180,19 +179,23 @@ function SuccessContent() {
       (item) => item.is_digital
     );
 
+  const paymentIsPaid = sessionData?.payment_status === "paid";
+
   return (
     <main className="max-w-3xl mx-auto px-6 py-24 text-center text-white font-mono">
       <div className="bg-zinc-950 border-4 border-black p-8 rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
         <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6 text-black font-black text-2xl border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-          ✓
+          {paymentIsPaid ? "✓" : "…"}
         </div>
 
         <h1 className="text-3xl font-black uppercase text-red-500 mb-2">
-          Payment Successful
+          {paymentIsPaid ? "Payment Successful" : "Order Status"}
         </h1>
 
         <p className="text-zinc-400 text-xs uppercase tracking-widest mb-6 font-bold">
-          Thank you for your purchase. Your order is confirmed.
+          {paymentIsPaid
+            ? "Thank you for your purchase. Your order is confirmed."
+            : "We are checking your payment and order details."}
         </p>
 
         {loading && (
@@ -229,7 +232,7 @@ function SuccessContent() {
 
               <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                 <span className="text-zinc-500 font-bold">
-                  AMOUNT PAID:
+                  {paymentIsPaid ? "AMOUNT PAID:" : "ORDER TOTAL:"}
                 </span>
 
                 <span className="font-bold text-red-500">

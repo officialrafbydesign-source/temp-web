@@ -65,6 +65,7 @@ export async function GET(
         status: {
           in: [
             "paid",
+            "processing",
             "shipped",
             "delivered",
           ],

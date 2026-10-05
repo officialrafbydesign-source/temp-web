@@ -119,8 +119,20 @@ export default async function OrderDetailsPage({
     notFound();
   }
 
-  const isFulfilledPayment = ["paid", "shipped", "delivered"].includes(
+  const isFulfilledPayment = ["paid", "processing", "shipped", "delivered"].includes(
     order.status
+  );
+
+  const musicIds = order.items
+    .filter((item) => item.productType === "music" && item.productId)
+    .map((item) => item.productId as string);
+  const musicProducts = await prisma.musicProduct.findMany({
+    where: { id: { in: musicIds } },
+    select: { id: true, itemType: true },
+  });
+  const physicalMusicIds = new Set(
+    musicProducts.filter((product) => String(product.itemType).toUpperCase() === "PHYSICAL")
+      .map((product) => product.id)
   );
 
   const hasPhysicalItems =
@@ -128,7 +140,8 @@ export default async function OrderDetailsPage({
     order.items.some(
       (item) =>
         item.productType === "clothing" ||
-        item.productType === "merch"
+        item.productType === "merch" ||
+        (item.productType === "music" && physicalMusicIds.has(item.productId || ""))
     );
 
   const itemSubtotal = order.items.reduce(
@@ -189,7 +202,7 @@ export default async function OrderDetailsPage({
                       {order.items.map((item) => {
                         const isDigital =
                           item.productType === "beat" ||
-                          item.productType === "music";
+                          (item.productType === "music" && !physicalMusicIds.has(item.productId || ""));
 
                         return (
                           <article
