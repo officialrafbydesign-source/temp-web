@@ -314,18 +314,55 @@ export async function POST(req: NextRequest) {
       const soldAt = new Date();
 
       const updatedOrder = await prisma.$transaction(async (tx) => {
-        const order = await tx.order.update({
-          where: { id: existingOrder.id },
+        // Claim this payment once, even if Stripe delivers the event twice at once.
+        const claim = await tx.order.updateMany({
+          where: {
+            id: existingOrder.id,
+            stripeSessionId: session.id,
+            status: "pending",
+          },
           data: {
             status: "paid",
-            stripeSessionId: session.id,
             email: customerEmail,
             ...(shippingDetails ? { shippingAddress: JSON.parse(JSON.stringify(shippingDetails)) } : {}),
           },
-          include: {
-            items: true,
-          },
         });
+
+        if (claim.count === 0) return null;
+
+        // Checkout checks stock before payment. Reduce it only after Stripe
+        // confirms payment, in the same transaction as the order status.
+        for (const item of existingOrder.items) {
+          if (
+            (item.productType === "clothing" || item.productType === "merch") &&
+            item.variantId && item.productId
+          ) {
+            const result = await tx.productVariant.updateMany({
+              where: { id: item.variantId, productId: item.productId },
+              data: { stock: { decrement: item.quantity } },
+            });
+            if (result.count !== 1) {
+              console.error(`[Inventory] Variant missing for paid order ${existingOrder.id}, item ${item.id}`);
+            }
+          }
+
+          if (item.productType === "music" && item.productId) {
+            const product = await tx.musicProduct.findUnique({
+              where: { id: item.productId },
+              select: { id: true, itemType: true, stock: true },
+            });
+            if (product && product.itemType.toUpperCase() === "PHYSICAL") {
+              if (product.stock === null) {
+                console.error(`[Inventory] Stock missing for paid order ${existingOrder.id}, item ${item.id}`);
+              } else {
+                await tx.musicProduct.update({
+                  where: { id: product.id },
+                  data: { stock: { decrement: item.quantity } },
+                });
+              }
+            }
+          }
+        }
 
         if (exclusiveBeatIds.length > 0) {
           await tx.beat.updateMany({
@@ -353,8 +390,16 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        return order;
+        return tx.order.findUnique({
+          where: { id: existingOrder.id },
+          include: { items: true },
+        });
       });
+
+      if (!updatedOrder) {
+        console.warn(`Order ${existingOrder.id} is no longer pending; skipped duplicate or changed order status.`);
+        return NextResponse.json({ received: true });
+      }
 
       if (exclusiveBeatIds.length > 0) {
         console.log(
