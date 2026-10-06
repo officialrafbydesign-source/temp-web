@@ -1,706 +1,230 @@
-import {
-  NextResponse,
-} from "next/server";
+import { NextResponse } from "next/server";
+import { Resend } from "resend";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { authorizeAdminApi } from "@/lib/adminApi";
 
-import crypto from "crypto";
+export const dynamic = "force-dynamic";
 
-import {
-  prisma,
-} from "@/lib/prisma";
+const userSelect = { id: true, name: true, email: true } as const;
+const areas = new Set(["MUSIC", "DESIGN"]);
+const dayStatuses = new Set(["TRANSPARENT", "GREEN", "AMBER", "RED"]);
 
-export const runtime =
-  "nodejs";
+function respond(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
 
-export const dynamic =
-  "force-dynamic";
+function value(input: unknown, max = 1000): string {
+  return typeof input === "string" ? input.trim().slice(0, max) : "";
+}
 
-const EMAIL_PATTERN =
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function optional(input: unknown, max = 1000): string | null {
+  return value(input, max) || null;
+}
 
-const MAX_REFERENCE_FILE_SIZE =
-  25 * 1024 * 1024;
+function dateOnly(input: unknown): Date | null {
+  const text = value(input, 40);
+  if (!text) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  if (!match) throw new Error("INVALID_DATE");
+  const date = new Date(Date.UTC(+match[1], +match[2] - 1, +match[3]));
+  if (date.toISOString().slice(0, 10) !== text) throw new Error("INVALID_DATE");
+  return date;
+}
 
-const ALLOWED_AUDIO_EXTENSIONS =
-  /\.(mp3|wav|flac|m4a|aac|ogg)$/i;
+function money(input: unknown): number | null {
+  if (input === "" || input === null || input === undefined) return null;
+  const amount = Number(input);
+  if (!Number.isFinite(amount) || amount < 0 || amount > 1000000) {
+    throw new Error("INVALID_PRICE");
+  }
+  return Math.round(amount * 100) / 100;
+}
 
-const safeUserSelect = {
-  id: true,
-  name: true,
-  email: true,
-  createdAt: true,
-} as const;
+function fields(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("INVALID_DATA");
+  }
+  return input as Record<string, unknown>;
+}
 
-function jsonResponse(
-  body: unknown,
-  status = 200
-) {
-  return NextResponse.json(
-    body,
-    {
-      status,
+export async function GET() {
+  const auth = await authorizeAdminApi();
+  if (!auth.authorized) return auth.response;
 
-      headers: {
-        "Cache-Control":
-          "private, no-store",
-      },
+  try {
+    const [bookings, designEnquiries, bookingDays] = await Promise.all([
+      prisma.booking.findMany({
+        orderBy: { createdAt: "desc" },
+        include: { user: { select: userSelect }, service: true, payments: true },
+      }),
+      prisma.designEnquiry.findMany({
+        orderBy: { createdAt: "desc" },
+        include: { user: { select: userSelect }, payments: true },
+      }),
+      prisma.bookingDay.findMany({ orderBy: { date: "asc" } }),
+    ]);
+    return respond({ bookings, designEnquiries, bookingDays });
+  } catch (error) {
+    console.error("GET /api/admin/bookings error:", error);
+    return respond({ error: "Unable to load bookings" }, 500);
+  }
+}
+
+export async function POST(req: Request) {
+  const auth = await authorizeAdminApi();
+  if (!auth.authorized) return auth.response;
+
+  try {
+    const body = fields(await req.json());
+    const date = dateOnly(body.date);
+    const area = value(body.area, 20);
+    const status = value(body.status, 20);
+    const note = optional(body.note, 1000);
+
+    if (!date || !areas.has(area) || !dayStatuses.has(status)) {
+      return respond({ error: "Invalid date, area or availability" }, 400);
     }
-  );
+
+    const bookingDay = await prisma.bookingDay.upsert({
+      where: { date_area: { date, area } },
+      update: { status, note },
+      create: { date, area, status, note },
+    });
+    return respond({ bookingDay });
+  } catch (error) {
+    if (error instanceof Error && ["INVALID_DATE", "INVALID_DATA"].includes(error.message)) {
+      return respond({ error: "Invalid calendar entry" }, 400);
+    }
+    console.error("POST /api/admin/bookings error:", error);
+    return respond({ error: "Unable to save availability" }, 500);
+  }
 }
 
-function clean(
-  value: unknown
-): string {
-  return String(
-    value ?? ""
-  ).trim();
-}
+export async function PATCH(req: Request) {
+  const auth = await authorizeAdminApi();
+  if (!auth.authorized) return auth.response;
 
-function optional(
-  value: unknown
-): string | null {
-  const result =
-    clean(value);
+  try {
+    const body = fields(await req.json());
+    const kind = value(body.kind, 20);
+    const id = value(body.id, 100);
+    const action = value(body.action, 20);
 
-  return (
-    !result ||
-    result === "N/A" ||
-    result === "None"
-  )
-    ? null
-    : result;
-}
+    if (!id || !["music", "design"].includes(kind) ||
+        !["update", "approve", "reject", "email"].includes(action)) {
+      return respond({ error: "Invalid request action" }, 400);
+    }
 
-function parseDate(
-  value: unknown
-): Date | null {
-  const raw =
-    clean(value);
+    if (action === "email") {
+      const subject = value(body.subject, 200);
+      const message = value(body.message, 10000);
+      if (!subject || !message) return respond({ error: "Subject and message are required" }, 400);
 
-  if (
-    !raw ||
-    raw === "N/A" ||
-    raw ===
-      "Confirmed via Email"
-  ) {
-    return null;
-  }
+      const request = kind === "music"
+        ? await prisma.booking.findUnique({ where: { id }, select: { user: { select: userSelect } } })
+        : await prisma.designEnquiry.findUnique({ where: { id }, select: { user: { select: userSelect } } });
+      if (!request) return respond({ error: "Request not found" }, 404);
 
-  const dateOnly =
-    raw.match(
-      /^(\d{4})-(\d{2})-(\d{2})$/
-    );
-
-  if (dateOnly) {
-    const parsed =
-      new Date(
-        Date.UTC(
-          Number(
-            dateOnly[1]
-          ),
-          Number(
-            dateOnly[2]
-          ) - 1,
-          Number(
-            dateOnly[3]
-          )
-        )
-      );
-
-    return Number.isNaN(
-      parsed.getTime()
-    )
-      ? null
-      : parsed;
-  }
-
-  const parsed =
-    new Date(raw);
-
-  return Number.isNaN(
-    parsed.getTime()
-  )
-    ? null
-    : parsed;
-}
-
-function stringArray(
-  value: unknown
-) {
-  if (
-    Array.isArray(value)
-  ) {
-    return value
-      .map((item) =>
-        clean(item)
-      )
-      .filter(Boolean);
-  }
-
-  return clean(value)
-    .split(",")
-    .map((item) =>
-      item.trim()
-    )
-    .filter(Boolean);
-}
-
-function isAllowedAudioFile(
-  file: File
-) {
-  return (
-    file.type.startsWith(
-      "audio/"
-    ) ||
-    ALLOWED_AUDIO_EXTENSIONS.test(
-      file.name
-    )
-  );
-}
-
-async function uploadToCloudinary(
-  file: File
-): Promise<string> {
-  const cloudName =
-    process.env
-      .CLOUDINARY_CLOUD_NAME ||
-    process.env
-      .NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-
-  const apiKey =
-    process.env
-      .CLOUDINARY_API_KEY;
-
-  const apiSecret =
-    process.env
-      .CLOUDINARY_API_SECRET;
-
-  if (
-    !cloudName ||
-    !apiKey ||
-    !apiSecret
-  ) {
-    throw new Error(
-      "CLOUDINARY_NOT_CONFIGURED"
-    );
-  }
-
-  if (
-    file.size >
-    MAX_REFERENCE_FILE_SIZE
-  ) {
-    throw new Error(
-      "REFERENCE_FILE_TOO_LARGE"
-    );
-  }
-
-  if (
-    !isAllowedAudioFile(
-      file
-    )
-  ) {
-    throw new Error(
-      "INVALID_REFERENCE_FILE"
-    );
-  }
-
-  const timestamp =
-    Math.floor(
-      Date.now() / 1000
-    );
-
-  const folder =
-    "raf-by-design/music-booking-references";
-
-  const signatureBase =
-    `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
-
-  const signature =
-    crypto
-      .createHash(
-        "sha1"
-      )
-      .update(
-        signatureBase
-      )
-      .digest(
-        "hex"
-      );
-
-  const upload =
-    new FormData();
-
-  upload.append(
-    "file",
-    file
-  );
-
-  upload.append(
-    "api_key",
-    apiKey
-  );
-
-  upload.append(
-    "timestamp",
-    String(timestamp)
-  );
-
-  upload.append(
-    "folder",
-    folder
-  );
-
-  upload.append(
-    "signature",
-    signature
-  );
-
-  const response =
-    await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
-      {
-        method:
-          "POST",
-
-        body:
-          upload,
+      const from = process.env.RESEND_FROM_EMAIL;
+      const key = process.env.RESEND_API_KEY;
+      if (!from || !key) return respond({ error: "Email is not configured" }, 503);
+      const sent = await new Resend(key).emails.send({
+        from, to: [request.user.email], subject, text: message,
+      });
+      if (sent.error) {
+        console.error("Booking email error:", sent.error);
+        return respond({ error: "Email could not be sent" }, 502);
       }
-    );
+      return respond({ sentTo: request.user.email });
+    }
 
-  const result =
-    await response.json();
-
-  if (
-    !response.ok ||
-    !result?.secure_url
-  ) {
-    console.error(
-      "Cloudinary booking reference upload failed:",
-      result?.error ||
-        response.status
-    );
-
-    throw new Error(
-      "CLOUDINARY_UPLOAD_FAILED"
-    );
-  }
-
-  return result.secure_url;
-}
-
-async function readPayload(
-  request: Request
-) {
-  const contentType =
-    request.headers.get(
-      "content-type"
-    ) || "";
-
-  if (
-    contentType.includes(
-      "multipart/form-data"
-    )
-  ) {
-    const formData =
-      await request.formData();
-
-    const payload: Record<
-      string,
-      unknown
-    > = {};
-
-    formData.forEach(
-      (
-        value,
-        key
-      ) => {
-        if (
-          !(
-            value instanceof
-            File
-          )
-        ) {
-          payload[key] =
-            value;
+    if (action === "approve" || action === "reject") {
+      const approved = action === "approve";
+      if (approved && kind === "design") {
+        const request = await prisma.designEnquiry.findUnique({
+          where: { id }, select: { status: true },
+        });
+        if (!request) return respond({ error: "Request not found" }, 404);
+        if (request.status === "awaiting_payment") {
+          return respond({ error: "Wait for the checkout payment before approving" }, 409);
         }
       }
-    );
-
-    const referenceFile =
-      formData.get(
-        "referenceFile"
-      );
-
-    if (
-      referenceFile instanceof
-        File &&
-      referenceFile.size > 0
-    ) {
-      payload.referenceFileName =
-        referenceFile.name;
-
-      payload.referenceFileUrl =
-        await uploadToCloudinary(
-          referenceFile
-        );
-    }
-
-    return payload;
-  }
-
-  return request.json();
-}
-
-async function getOrCreateMusicService(
-  serviceName: string
-) {
-  const existing =
-    await prisma.musicService.findFirst({
-      where: {
-        name: {
-          equals:
-            serviceName,
-
-          mode:
-            "insensitive",
-        },
-      },
-    });
-
-  if (existing) {
-    return existing;
-  }
-
-  return prisma.musicService.create({
-    data: {
-      name:
-        serviceName,
-
-      description:
-        "Created automatically from a music service enquiry.",
-
-      price: 0,
-    },
-  });
-}
-
-async function getOrCreateBookingUser(
-  name: string,
-  email: string
-) {
-  const existingUser =
-    await prisma.user.findFirst({
-      where: {
-        email: {
-          equals:
-            email,
-
-          mode:
-            "insensitive",
-        },
-      },
-
-      select:
-        safeUserSelect,
-    });
-
-  if (existingUser) {
-    // Never overwrite an existing customer's name
-    // from a public booking form.
-    return existingUser;
-  }
-
-  return prisma.user.create({
-    data: {
-      name,
-      email,
-    },
-
-    select:
-      safeUserSelect,
-  });
-}
-
-export async function POST(
-  request: Request
-) {
-  try {
-    const body =
-      await readPayload(
-        request
-      );
-
-    const name =
-      clean(
-        body.name
-      );
-
-    const email =
-      clean(
-        body.email
-      ).toLowerCase();
-
-    const serviceType =
-      clean(
-        body.serviceType
-      );
-
-    const projectDescription =
-      clean(
-        body.projectDescription ??
-          body.projectDetails
-      );
-
-    if (
-      !name ||
-      !email ||
-      !serviceType ||
-      !projectDescription
-    ) {
-      return jsonResponse(
-        {
-          error:
-            "Name, email, service type and project description are required.",
-        },
-        400
-      );
-    }
-
-    if (
-      !EMAIL_PATTERN.test(
-        email
-      )
-    ) {
-      return jsonResponse(
-        {
-          error:
-            "Enter a valid email address.",
-        },
-        400
-      );
-    }
-
-    if (
-      name.length > 100
-    ) {
-      return jsonResponse(
-        {
-          error:
-            "Name is too long.",
-        },
-        400
-      );
-    }
-
-    if (
-      serviceType.length >
-      150
-    ) {
-      return jsonResponse(
-        {
-          error:
-            "Service type is too long.",
-        },
-        400
-      );
-    }
-
-    if (
-      projectDescription.length >
-      10000
-    ) {
-      return jsonResponse(
-        {
-          error:
-            "Project description is too long.",
-        },
-        400
-      );
-    }
-
-    const recordingDate =
-      parseDate(
-        body.recordingDate
-      );
-
-    const studioSessionDate =
-      parseDate(
-        body.studioSessionDate
-      );
-
-    const deadlineDate =
-      parseDate(
-        body.deadlineDate ??
-          body.deadline
-      );
-
-    const primaryDate =
-      recordingDate ||
-      studioSessionDate ||
-      deadlineDate ||
-      null;
-
-    const [
-      user,
-      service,
-    ] =
-      await Promise.all([
-        getOrCreateBookingUser(
-          name,
-          email
-        ),
-
-        getOrCreateMusicService(
-          serviceType
-        ),
-      ]);
-
-    const booking =
-      await prisma.booking.create({
-        data: {
-          userId:
-            user.id,
-
-          serviceId:
-            service.id,
-
-          date:
-            primaryDate,
-
-          status:
-            "pending",
-
-          companyBrand:
-            optional(
-              body.companyBrand
-            ),
-
-          projectType:
-            optional(
-              body.projectType
-            ),
-
-          musicTypes:
-            stringArray(
-              body.musicTypes
-            ),
-
-          referenceLinks:
-            optional(
-              body.referenceLinks
-            ),
-
-          referenceFileName:
-            optional(
-              body.referenceFileName
-            ),
-
-          referenceFileUrl:
-            optional(
-              body.referenceFileUrl
-            ),
-
-          deadlineText:
-            optional(
-              body.deadlineDate ??
-                body.deadline
-            ),
-
-          recordingHours:
-            optional(
-              body.recordingHours
-            ),
-
-          recordingDate,
-
-          editOptions:
-            optional(
-              body.editOptions
-            ),
-
-          editDetails:
-            optional(
-              body.editDetails
-            ),
-
-          inStudioSession:
-            optional(
-              body.inStudioSession
-            ),
-
-          studioSessionDate,
-
-          otherAudioService:
-            optional(
-              body.otherAudioService
-            ),
-
-          projectDescription,
-        },
-
-        include: {
-          user: {
-            select:
-              safeUserSelect,
+      if (!approved) {
+        const active = await prisma.servicePayment.count({
+          where: {
+            ...(kind === "music" ? { bookingId: id } : { designEnquiryId: id }),
+            status: { in: ["sent", "paid"] },
           },
+        });
+        if (active) return respond({ error: "Resolve the payment or refund in Stripe before rejecting" }, 409);
+      }
+      const data = {
+        status: approved ? "approved" : "rejected",
+        approvedAt: approved ? new Date() : null,
+        rejectedAt: approved ? null : new Date(),
+      };
+      const updated = kind === "music"
+        ? await prisma.booking.update({ where: { id }, data })
+        : await prisma.designEnquiry.update({ where: { id }, data });
+      return respond({ request: updated });
+    }
 
-          service:
-            true,
-        },
-      });
+    const input = fields(body.data);
+    if (kind === "music") {
+      const update: Prisma.BookingUncheckedUpdateInput = {
+        date: dateOnly(input.date),
+        companyBrand: optional(input.companyBrand, 150),
+        projectType: optional(input.projectType, 150),
+        musicTypes: value(input.musicTypes, 1000).split(",").map((part) => part.trim()).filter(Boolean),
+        referenceLinks: optional(input.referenceLinks, 3000),
+        deadlineText: optional(input.deadlineText, 100),
+        recordingHours: optional(input.recordingHours, 100),
+        recordingDate: dateOnly(input.recordingDate),
+        editOptions: optional(input.editOptions, 1000),
+        editDetails: optional(input.editDetails, 10000),
+        inStudioSession: optional(input.inStudioSession, 100),
+        studioSessionDate: dateOnly(input.studioSessionDate),
+        otherAudioService: optional(input.otherAudioService, 150),
+        projectDescription: optional(input.projectDescription, 10000),
+        adminNotes: optional(input.adminNotes, 10000),
+      };
+      const serviceName = value(input.serviceType, 150);
+      if (serviceName) {
+        const service = await prisma.musicService.findFirst({
+          where: { name: { equals: serviceName, mode: "insensitive" } },
+        }) ?? await prisma.musicService.create({ data: { name: serviceName, price: 0 } });
+        update.serviceId = service.id;
+      }
+      const updated = await prisma.booking.update({ where: { id }, data: update });
+      return respond({ request: updated });
+    }
 
-    return jsonResponse(
-      {
-        success: true,
-
-        message:
-          "Booking request received successfully.",
-
-        booking,
-      },
-      201
-    );
+    const update: Prisma.DesignEnquiryUncheckedUpdateInput = {
+      title: value(input.title, 200) || "Untitled Project",
+      details: value(input.details, 10000),
+      services: value(input.services, 2000).split(",").map((part) => part.trim()).filter(Boolean),
+      companyBrand: optional(input.companyBrand, 150),
+      deadline: dateOnly(input.deadline),
+      extraRevisions: input.extraRevisions === true,
+      paymentOption: optional(input.paymentOption, 30),
+      totalPrice: money(input.totalPrice),
+      dueNow: money(input.dueNow),
+      adminNotes: optional(input.adminNotes, 10000),
+    };
+    const updated = await prisma.designEnquiry.update({ where: { id }, data: update });
+    return respond({ request: updated });
   } catch (error) {
-    console.error(
-      "POST /api/bookings error:",
-      error
-    );
-
-    if (
-      error instanceof
-        Error &&
-      error.message ===
-        "REFERENCE_FILE_TOO_LARGE"
-    ) {
-      return jsonResponse(
-        {
-          error:
-            "Reference audio file must be 25 MB or smaller.",
-        },
-        400
-      );
+    if (error instanceof Error && ["INVALID_DATE", "INVALID_DATA", "INVALID_PRICE"].includes(error.message)) {
+      return respond({ error: "Invalid request details" }, 400);
     }
-
-    if (
-      error instanceof
-        Error &&
-      error.message ===
-        "INVALID_REFERENCE_FILE"
-    ) {
-      return jsonResponse(
-        {
-          error:
-            "Reference file must be an MP3, WAV, FLAC, M4A, AAC or OGG audio file.",
-        },
-        400
-      );
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      return respond({ error: "Request not found" }, 404);
     }
-
-    return jsonResponse(
-      {
-        error:
-          "The booking request could not be submitted.",
-      },
-      500
-    );
+    console.error("PATCH /api/admin/bookings error:", error);
+    return respond({ error: "Unable to update request" }, 500);
   }
 }

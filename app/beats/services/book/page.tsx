@@ -133,6 +133,10 @@ export default function BeatsBookingFormPage() {
         setErrorMsg("Please upload a valid MP3/Audio file.");
         return;
       }
+      if (file.size > 3 * 1024 * 1024) {
+        setErrorMsg("Audio reference files must be 3 MB or smaller. You can paste a link for larger files.");
+        return;
+      }
       setFormData({ ...formData, referenceFile: file });
       setErrorMsg("");
     }
@@ -399,7 +403,7 @@ export default function BeatsBookingFormPage() {
                       b. Select Preferred Recording Session Date *
                     </label>
                     <p className="font-mono text-sm text-zinc-300 leading-6">
-                      Select an available slot from the calendar view below.
+                      Choose a preferred date. We will confirm availability after reviewing your request.
                     </p>
                     <input
                       type="date"
@@ -499,7 +503,7 @@ export default function BeatsBookingFormPage() {
                           Select Studio Attendance Location Slot
                         </label>
                         <p className="font-mono text-sm text-zinc-300 leading-6">
-                          Choose an available date for your studio mixdown session:
+                          Choose a preferred date for your studio mixdown session. We will confirm availability after reviewing your request.
                         </p>
                         <input
                           type="date"
@@ -628,7 +632,7 @@ export default function BeatsBookingFormPage() {
                   Upload MP3 Reference File
                 </label>
                 <p className="font-mono text-sm text-zinc-300 leading-6">
-                  Upload one MP3 reference file. It will be stored with the booking request for review.
+                  Upload one MP3 reference file, up to 3 MB. Larger files can be shared using the reference link field. Uploaded files are private to the booking team.
                 </p>
                 <input
                   type="file"
@@ -681,8 +685,12 @@ export default function BeatsBookingFormPage() {
               </h3>
 
               <div className="space-y-2">
+                <label className="block font-mono text-sm font-black uppercase text-white">
+                  Project description *
+                </label>
                 <textarea
                   rows={4}
+                  required
                   value={formData.projectDescription}
                   onChange={(e) =>
                     setFormData({ ...formData, projectDescription: e.target.value })

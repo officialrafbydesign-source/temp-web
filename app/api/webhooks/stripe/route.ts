@@ -244,8 +244,63 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (event.type === "invoice.paid") {
+    const invoice = event.data.object as Stripe.Invoice;
+    const paymentId = invoice.metadata?.servicePaymentId;
+    if (!paymentId) return NextResponse.json({ received: true });
+
+    try {
+      const payment = await prisma.servicePayment.findUnique({ where: { id: paymentId } });
+      if (!payment || payment.stripeInvoiceId !== invoice.id ||
+          invoice.currency?.toLowerCase() !== "gbp" ||
+          invoice.status !== "paid" || invoice.total !== payment.amount) {
+        console.error(`Service invoice does not match payment ${paymentId}`);
+        return NextResponse.json({ error: "Service invoice mismatch" }, { status: 400 });
+      }
+      await prisma.servicePayment.updateMany({
+        where: { id: payment.id, status: { not: "paid" } },
+        data: { status: "paid", paidAt: new Date() },
+      });
+      return NextResponse.json({ received: true });
+    } catch (error) {
+      console.error("Service invoice webhook error:", error);
+      return NextResponse.json({ error: "Service invoice update failed" }, { status: 500 });
+    }
+  }
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+
+    if (session.metadata?.servicePaymentId) {
+      const paymentId = session.metadata.servicePaymentId;
+      if (session.payment_status !== "paid") return NextResponse.json({ received: true });
+      try {
+        const payment = await prisma.servicePayment.findUnique({ where: { id: paymentId } });
+        if (!payment || !payment.designEnquiryId ||
+            payment.stripeSessionId !== session.id ||
+            session.currency?.toLowerCase() !== "gbp" ||
+            session.amount_total !== payment.amount) {
+          console.error(`Design checkout does not match payment ${paymentId}`);
+          return NextResponse.json({ error: "Service checkout mismatch" }, { status: 400 });
+        }
+        await prisma.$transaction(async (tx) => {
+          const claim = await tx.servicePayment.updateMany({
+            where: { id: payment.id, status: "pending" },
+            data: { status: "paid", paidAt: new Date() },
+          });
+          if (claim.count > 0) {
+            await tx.designEnquiry.updateMany({
+              where: { id: payment.designEnquiryId!, status: "awaiting_payment" },
+              data: { status: "new" },
+            });
+          }
+        });
+        return NextResponse.json({ received: true });
+      } catch (error) {
+        console.error("Design checkout webhook error:", error);
+        return NextResponse.json({ error: "Service payment update failed" }, { status: 500 });
+      }
+    }
 
     if (session.payment_status !== "paid") {
       console.log(

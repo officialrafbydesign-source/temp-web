@@ -24,6 +24,17 @@ type RequestKind =
   | "music"
   | "design";
 
+function safeReferenceLinks(value: string | null | undefined) {
+  return (value || "").split(/\s+/).slice(0, 5).flatMap((part) => {
+    try {
+      const url = new URL(part);
+      return url.protocol === "https:" || url.protocol === "http:" ? [url.toString()] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
 type BookingDay = {
   id: string;
   date: string;
@@ -43,8 +54,18 @@ type MusicService = {
   name?: string | null;
 };
 
+type ServicePayment = {
+  id: string;
+  stage: "deposit" | "balance" | "full";
+  amount: number;
+  totalAmount: number;
+  status: string;
+  stripeInvoiceId?: string | null;
+};
+
 type Booking = {
   id: string;
+  payments?: ServicePayment[];
   date?: string | null;
   status: string;
 
@@ -74,6 +95,7 @@ type Booking = {
 
 type DesignEnquiry = {
   id: string;
+  payments?: ServicePayment[];
   title: string;
   details: string;
   services: string[];
@@ -330,6 +352,8 @@ export default function BookingsAdminPage() {
     message,
     setMessage,
   ] = useState("");
+
+  const [lastInvoiceUrl, setLastInvoiceUrl] = useState("");
 
   const [
     area,
@@ -1308,9 +1332,49 @@ RAF By Design`,
     }
   }
 
+  async function createInvoice(kind: RequestKind, id: string, stage: "deposit" | "balance") {
+    let totalPrice: number | undefined;
+    if (stage === "deposit") {
+      const entered = window.prompt("Confirmed total service price in pounds (for example, 60.00):");
+      if (entered === null) return;
+      totalPrice = Number(entered);
+      if (!Number.isFinite(totalPrice) || totalPrice < 1 ||
+          !/^\d+(?:\.\d{1,2})?$/.test(entered.trim())) {
+        setMessage("❌ Enter a valid confirmed total in pounds and pence.");
+        return;
+      }
+    } else if (!window.confirm("The work is complete and the balance is now due. Send the invoice?")) {
+      return;
+    }
+
+    try {
+      setWorking(`invoice-${kind}-${id}`);
+      setLastInvoiceUrl("");
+      const response = await fetch("/api/admin/bookings/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ kind, id, stage, totalPrice }),
+      });
+      const result = await readResponse(response);
+      setMessage(`✅ ${stage === "deposit" ? "Deposit" : "Balance"} invoice sent.`);
+      setLastInvoiceUrl(result.invoiceUrl || "");
+      await loadData();
+    } catch (error) {
+      setMessage(`❌ ${error instanceof Error ? error.message : "Unable to send invoice."}`);
+    } finally {
+      setWorking(null);
+    }
+  }
+
   return (
     <AdminLayout active="bookings">
       <div className="space-y-6 text-black [font-family:Arial,Helvetica,sans-serif]">
+        {lastInvoiceUrl && (
+          <a href={lastInvoiceUrl} target="_blank" rel="noopener noreferrer" className="inline-block rounded bg-blue-700 p-3 font-bold text-white underline">
+            Open the invoice just sent to the client
+          </a>
+        )}
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-3xl font-black">
@@ -1849,24 +1913,17 @@ ${infoValue(
                       )}
 
                       <div className="flex flex-wrap gap-2">
-                        {booking.referenceLinks && (
-                          <a
-                            href={
-                              booking.referenceLinks
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded border bg-white px-3 py-2 text-sm font-bold hover:bg-zinc-100"
-                          >
-                            Reference
-                            Link
+                        {safeReferenceLinks(booking.referenceLinks).map((url, index) => (
+                          <a key={url} href={url} target="_blank" rel="noopener noreferrer"
+                            className="rounded border bg-white px-3 py-2 text-sm font-bold hover:bg-zinc-100">
+                            Reference Link {index + 1}
                           </a>
-                        )}
+                        ))}
 
                         {booking.referenceFileUrl && (
                           <a
                             href={
-                              booking.referenceFileUrl
+                              `/api/admin/bookings/references?kind=music&id=${encodeURIComponent(booking.id)}`
                             }
                             target="_blank"
                             rel="noreferrer"
@@ -1887,6 +1944,13 @@ ${infoValue(
                           warning
                         />
                       )}
+
+                      <PaymentPanel
+                        payments={booking.payments || []}
+                        approved={booking.status.toLowerCase() === "approved"}
+                        onCreate={(stage) => createInvoice("music", booking.id, stage)}
+                        working={working === `invoice-music-${booking.id}`}
+                      />
 
                       <RequestActions
                         kind="music"
@@ -2061,15 +2125,15 @@ ${infoValue(
                         <div className="flex flex-wrap gap-2">
                           {enquiry.fileUrls.map(
                             (
-                              url,
+                              _url,
                               index
                             ) => (
                               <a
                                 key={
-                                  url
+                                  index
                                 }
                                 href={
-                                  url
+                                  `/api/admin/bookings/references?kind=design&id=${encodeURIComponent(enquiry.id)}&index=${index}`
                                 }
                                 target="_blank"
                                 rel="noreferrer"
@@ -2093,6 +2157,13 @@ ${infoValue(
                           warning
                         />
                       )}
+
+                      <PaymentPanel
+                        payments={enquiry.payments || []}
+                        approved={enquiry.status.toLowerCase() === "approved"}
+                        onCreate={(stage) => createInvoice("design", enquiry.id, stage)}
+                        working={working === `invoice-design-${enquiry.id}`}
+                      />
 
                       <RequestActions
                         kind="design"
@@ -2315,6 +2386,58 @@ function DetailBox({
   );
 }
 
+function PaymentPanel({
+  payments,
+  approved,
+  onCreate,
+  working,
+}: {
+  payments: ServicePayment[];
+  approved: boolean;
+  onCreate: (stage: "deposit" | "balance") => void;
+  working: boolean;
+}) {
+  const deposit = payments.find((payment) => payment.stage === "deposit");
+  const balance = payments.find((payment) => payment.stage === "balance");
+  const full = payments.find((payment) => payment.stage === "full");
+
+  return (
+    <div className="rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm">
+      <p className="font-bold">Payment</p>
+      {payments.length === 0 && <p>No payment requested yet.</p>}
+      {payments.map((payment) => (
+        <p key={payment.id}>
+          {payment.stage}: £{(payment.amount / 100).toFixed(2)} — {payment.status}
+        </p>
+      ))}
+      {approved && !full && !deposit && (
+        <button type="button" disabled={working} onClick={() => onCreate("deposit")}
+          className="mt-2 rounded bg-blue-700 px-3 py-2 font-bold text-white disabled:opacity-50">
+          Send 50% deposit invoice
+        </button>
+      )}
+      {approved && deposit && deposit.status !== "paid" && (
+        <button type="button" disabled={working} onClick={() => onCreate("deposit")}
+          className="mt-2 rounded bg-blue-700 px-3 py-2 font-bold text-white disabled:opacity-50">
+          Open or retry deposit invoice
+        </button>
+      )}
+      {approved && deposit?.status === "paid" && !balance && (
+        <button type="button" disabled={working} onClick={() => onCreate("balance")}
+          className="mt-2 rounded bg-blue-700 px-3 py-2 font-bold text-white disabled:opacity-50">
+          Send balance invoice after work is complete
+        </button>
+      )}
+      {approved && balance && balance.status !== "paid" && (
+        <button type="button" disabled={working} onClick={() => onCreate("balance")}
+          className="mt-2 rounded bg-blue-700 px-3 py-2 font-bold text-white disabled:opacity-50">
+          Open or retry balance invoice
+        </button>
+      )}
+    </div>
+  );
+}
+
 function RequestActions({
   kind,
   id,
@@ -2451,36 +2574,12 @@ function EditRequestModal({
         </div>
 
         <div className="grid gap-4 p-5 sm:grid-cols-2">
-          <Field
-            label="Client Name"
-            value={
-              editing.data.name
-            }
-            onChange={(
-              value
-            ) =>
-              onChange(
-                "name",
-                value
-              )
-            }
-          />
-
-          <Field
-            label="Client Email"
-            type="email"
-            value={
-              editing.data.email
-            }
-            onChange={(
-              value
-            ) =>
-              onChange(
-                "email",
-                value
-              )
-            }
-          />
+          <div className="rounded border bg-zinc-50 p-3 text-sm">
+            <strong>Client:</strong> {editing.data.name || "—"}
+          </div>
+          <div className="rounded border bg-zinc-50 p-3 text-sm">
+            <strong>Email:</strong> {editing.data.email || "—"}
+          </div>
 
           {editing.kind ===
           "music" ? (

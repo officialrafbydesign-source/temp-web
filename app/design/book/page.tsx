@@ -1,135 +1,9 @@
 "use client";
 
-import { useState, FormEvent, ChangeEvent } from "react";
+import { useState, useEffect, FormEvent, ChangeEvent } from "react";
 import BackgroundLayer from "@/components/layout/BackgroundLayer";
 
-interface ServiceOption {
-  label: string;
-  price: number;
-}
-
-interface MainService {
-  id: string;
-  title: string;
-  options: ServiceOption[];
-}
-
-const DESIGN_SERVICES_CATALOG: MainService[] = [
-  {
-    id: "logo-design",
-    title: "Logo Design",
-    options: [
-      { label: "Black & White", price: 50 },
-      { label: "Colour", price: 60 },
-    ],
-  },
-  {
-    id: "2d-character",
-    title: "2D Character / Mascot",
-    options: [
-      { label: "Line Art", price: 45 },
-      { label: "Black & White", price: 50 },
-      { label: "Colour", price: 60 },
-      { label: "With Effects", price: 90 },
-      { label: "Colour + Background", price: 100 },
-      { label: "Extra Character (+£30)", price: 30 },
-    ],
-  },
-  {
-    id: "leaflets-flyers",
-    title: "Leaflets / Flyers (Up to A4)",
-    options: [
-      { label: "1 Side", price: 50 },
-      { label: "2 Sides", price: 60 },
-    ],
-  },
-  {
-    id: "posters",
-    title: "Posters",
-    options: [
-      { label: "A4 Size", price: 50 },
-      { label: "A3 Size", price: 60 },
-      { label: "A2 Size", price: 70 },
-    ],
-  },
-  {
-    id: "brochures-menus",
-    title: "Brochures / Menus",
-    options: [
-      { label: "2 Sides", price: 60 },
-      { label: "4 Sides", price: 80 },
-      { label: "Extra Sides (+£10 each)", price: 10 },
-    ],
-  },
-  {
-    id: "music-cover",
-    title: "Music Cover Design",
-    options: [
-      { label: "Simple Cover", price: 50 },
-      { label: "Advanced Cover", price: 80 },
-      { label: "Back Cover Add-on", price: 20 },
-      { label: "Social Media Pack Add-on", price: 10 },
-    ],
-  },
-  {
-    id: "banner-design",
-    title: "Banner Design",
-    options: [{ label: "Standard Banner", price: 60 }],
-  },
-  {
-    id: "custom-font",
-    title: "Custom Font / Symbol",
-    options: [{ label: "Custom Font / Symbol", price: 60 }],
-  },
-  {
-    id: "pattern-design",
-    title: "Pattern Design",
-    options: [{ label: "Standard Pattern Design", price: 60 }],
-  },
-  {
-    id: "business-card",
-    title: "Business Card",
-    options: [
-      { label: "1 Side", price: 55 },
-      { label: "2 Sides", price: 60 },
-    ],
-  },
-  {
-    id: "advert-photos",
-    title: "Advert Photos",
-    options: [{ label: "Advert Image", price: 40 }],
-  },
-  {
-    id: "social-media",
-    title: "Social Media Content",
-    options: [{ label: "Up to 5 mins video", price: 60 }],
-  },
-  {
-    id: "gif-design",
-    title: "GIF Design",
-    options: [{ label: "Custom Animated GIF", price: 60 }],
-  },
-  {
-    id: "lyric-video",
-    title: "Lyric Video",
-    options: [{ label: "Lyric Video", price: 80 }],
-  },
-  {
-    id: "photo-editing",
-    title: "Photo Editing",
-    options: [{ label: "Retouch Only", price: 30 }],
-  },
-  {
-    id: "mockup-design",
-    title: "Mockup Design",
-    options: [{ label: "2D Mockup Design", price: 50 }],
-  },
-  {
-    id: "packaging-design",
-    title: "Packaging Design",
-    options: [{ label: "Custom Packaging Design", price: 50 }],
-  },
-];
+import { DESIGN_SERVICES_CATALOG, priceDesignSelection } from "@/lib/designPricing";
 
 export default function DesignBookingFormPage() {
   const [selectedServiceId, setSelectedServiceId] =
@@ -155,7 +29,7 @@ export default function DesignBookingFormPage() {
     projectDetails: "",
     deadlineDate: "",
     extraRevisions: false,
-    paymentOption: "full" as "full" | "deposit",
+    paymentOption: "deposit" as "full" | "deposit",
     referenceFiles: [] as File[],
     mailchimp: false,
   });
@@ -163,6 +37,35 @@ export default function DesignBookingFormPage() {
   const [loading, setLoading] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [checkoutReturn, setCheckoutReturn] = useState<"paid" | "processing" | "cancelled" | "">("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("payment");
+    if (result === "cancelled") {
+      setCheckoutReturn("cancelled");
+    } else if (result === "success") {
+      const sessionId = params.get("session_id");
+      if (!sessionId) return;
+      setCheckoutReturn("processing");
+      let attempts = 0;
+      const check = async () => {
+        attempts += 1;
+        try {
+          const response = await fetch(`/api/design/enquiry?session_id=${encodeURIComponent(sessionId)}`, { cache: "no-store" });
+          const data = await response.json();
+          if (response.ok && data.paid) {
+            setCheckoutReturn("paid");
+            window.clearInterval(timer);
+          }
+        } catch { /* Stripe confirmation can arrive asynchronously. */ }
+        if (attempts >= 6) window.clearInterval(timer);
+      };
+      const timer = window.setInterval(check, 3000);
+      void check();
+      return () => window.clearInterval(timer);
+    }
+  }, []);
 
   const activeService =
     DESIGN_SERVICES_CATALOG.find(
@@ -200,8 +103,25 @@ export default function DesignBookingFormPage() {
 
   const totalPrice = basePrice + revisionFee;
 
+  const quoted = (() => {
+    try {
+      return priceDesignSelection({
+        serviceId: selectedServiceId,
+        optionIndex: selectedOptionIndex,
+        photoCount,
+        advertPhotoCount,
+        photoAddOns,
+        extraRevisions: formData.extraRevisions,
+      }).requiresQuote;
+    } catch {
+      return true;
+    }
+  })();
+
   const dueNow =
-    formData.paymentOption === "deposit"
+    quoted
+      ? 0
+      : formData.paymentOption === "deposit"
       ? totalPrice * 0.5
       : totalPrice;
 
@@ -225,9 +145,16 @@ export default function DesignBookingFormPage() {
     e: ChangeEvent<HTMLInputElement>
   ) => {
     if (e.target.files) {
+      const files = Array.from(e.target.files);
+      if (files.length > 5 || files.reduce((sum, file) => sum + file.size, 0) > 3 * 1024 * 1024) {
+        setErrorMsg("Choose up to five reference files, totalling 3 MB or less.");
+        e.target.value = "";
+        return;
+      }
+      setErrorMsg("");
       setFormData((prev) => ({
         ...prev,
-        referenceFiles: Array.from(e.target.files || []),
+        referenceFiles: files,
       }));
     }
   };
@@ -278,6 +205,13 @@ export default function DesignBookingFormPage() {
       }
 
       payload.append("category", "design");
+      payload.append("serviceId", selectedServiceId);
+      payload.append("optionIndex", String(selectedOptionIndex));
+      payload.append("photoCount", String(photoCount));
+      payload.append("advertPhotoCount", String(advertPhotoCount));
+      payload.append("colourTone", String(photoAddOns.colourTone));
+      payload.append("singleColour", String(photoAddOns.singleColour));
+      payload.append("customEditing", String(photoAddOns.customEditing));
       payload.append("name", formData.name);
       payload.append("email", formData.email);
 
@@ -302,16 +236,6 @@ export default function DesignBookingFormPage() {
       );
 
       payload.append(
-        "totalPrice",
-        totalPrice.toString()
-      );
-
-      payload.append(
-        "dueNow",
-        dueNow.toString()
-      );
-
-      payload.append(
         "mailchimp",
         formData.mailchimp ? "true" : "false"
       );
@@ -331,6 +255,11 @@ export default function DesignBookingFormPage() {
         throw new Error(
           result.error || "Submission failed"
         );
+      }
+
+      if (result.checkoutUrl) {
+        window.location.assign(result.checkoutUrl);
+        return;
       }
 
       setFormSubmitted(true);
@@ -380,7 +309,14 @@ export default function DesignBookingFormPage() {
         <main className="min-h-screen text-white relative w-full bg-transparent pb-20">
           {/* CENTERED FORM BLOCK - MATCHES BEATS BOOKING LAYOUT */}
           <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-6 pt-10">
-          {formSubmitted ? (
+          {checkoutReturn === "paid" || checkoutReturn === "processing" ? (
+            <div className="rounded-2xl border-4 border-black bg-black/85 p-8 text-center font-mono text-white">
+              <h2 className="raf-heading text-3xl uppercase">{checkoutReturn === "paid" ? "Payment received" : "Payment confirmation processing"}</h2>
+              <p className="mt-4">{checkoutReturn === "paid"
+                ? "Your design request and payment are recorded. We will review the brief and contact you."
+                : "We are checking the payment with Stripe. Please keep your receipt; we will review your request after confirmation."}</p>
+            </div>
+          ) : formSubmitted ? (
             <div className="rounded-2xl border-4 border-black bg-black/85 backdrop-blur-md p-8 md:p-12 text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
               <span className="inline-block bg-blue-600 text-white rounded-full p-4 text-3xl font-bold">
                 ✓
@@ -391,12 +327,7 @@ export default function DesignBookingFormPage() {
               </h2>
 
               <p className="font-mono text-sm text-white max-w-lg mx-auto leading-6">
-                Thank you for submitting your project request. A
-                confirmation email has been dispatched to{" "}
-                <strong className="text-white">
-                  {formData.email}
-                </strong>
-                .
+                Your project brief has been received. We will review it and email you a quote before requesting payment.
               </p>
 
               <button
@@ -415,6 +346,11 @@ export default function DesignBookingFormPage() {
                 <div className="p-4 bg-blue-950/80 border-2 border-blue-600 text-blue-100 text-sm font-mono rounded-lg">
                   ⚠️ Error: {errorMsg}
                 </div>
+              )}
+              {checkoutReturn === "cancelled" && (
+                <p className="rounded-lg border border-amber-500 bg-amber-950 p-3 font-mono text-sm">
+                  Checkout was cancelled. No payment has been confirmed. You can submit the form again when ready.
+                </p>
               )}
 
               {/* SECTION 1: CONTACT DETAILS */}
@@ -565,13 +501,11 @@ export default function DesignBookingFormPage() {
                       <input
                         type="number"
                         min="1"
+                        max="20"
                         value={advertPhotoCount}
                         onChange={(e) =>
                           setAdvertPhotoCount(
-                            Math.max(
-                              1,
-                              Number(e.target.value)
-                            )
+                            Math.min(20, Math.max(1, Number(e.target.value) || 1))
                           )
                         }
                         className="w-28 rounded-lg border-2 border-black p-3 font-mono text-sm bg-zinc-950 text-white outline-none focus:ring-2 focus:ring-blue-500"
@@ -604,13 +538,11 @@ export default function DesignBookingFormPage() {
                       <input
                         type="number"
                         min="1"
+                        max="20"
                         value={photoCount}
                         onChange={(e) =>
                           setPhotoCount(
-                            Math.max(
-                              1,
-                              Number(e.target.value)
-                            )
+                            Math.min(20, Math.max(1, Number(e.target.value) || 1))
                           )
                         }
                         className="w-28 rounded-lg border-2 border-black p-3 font-mono text-sm bg-zinc-950 text-white outline-none focus:ring-2 focus:ring-blue-500"
@@ -807,6 +739,7 @@ export default function DesignBookingFormPage() {
                     onChange={handleFileChange}
                     className="block w-full font-mono text-sm text-zinc-300 file:mr-3 file:py-2.5 file:px-4 file:rounded-md file:border-2 file:border-black file:text-sm file:font-mono file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer"
                   />
+                  <p className="font-mono text-sm text-zinc-300">Up to five images or PDFs, totalling 3 MB. Files are private to the booking team.</p>
 
                   {formData.referenceFiles.length >
                     0 && (
@@ -935,7 +868,7 @@ export default function DesignBookingFormPage() {
                   )}
 
                   <div className="flex justify-between border-t border-zinc-800 pt-2 text-sm font-bold text-white">
-                    <span>Total Project Cost:</span>
+                    <span>{quoted ? "Guide Price (quote to follow):" : "Total Project Cost:"}</span>
 
                     <span>
                       £{totalPrice} GBP
@@ -943,7 +876,7 @@ export default function DesignBookingFormPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-4 pt-1 font-mono text-sm">
+                {!quoted && <div className="flex flex-wrap gap-4 pt-1 font-mono text-sm">
                   <label className="flex items-center space-x-2 cursor-pointer">
                     <input
                       type="radio"
@@ -992,10 +925,12 @@ export default function DesignBookingFormPage() {
                       {totalPrice * 0.5})
                     </span>
                   </label>
-                </div>
+                </div>}
 
                 <div className="pt-1 text-sm font-mono font-black uppercase text-blue-400">
-                  Amount Due Now: £{dueNow} GBP
+                  {quoted
+                    ? "We will review your brief and confirm a price before requesting payment."
+                    : `Amount Due at Stripe checkout: £${dueNow} GBP`}
                 </div>
               </div>
 
@@ -1032,7 +967,7 @@ export default function DesignBookingFormPage() {
               >
                 {loading
                   ? "SUBMITTING REQUEST..."
-                  : `SUBMIT FORM (£${dueNow})`}
+                  : quoted ? "SUBMIT FOR A QUOTE" : `CONTINUE TO PAYMENT (£${dueNow})`}
               </button>
             </form>
           )}

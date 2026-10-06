@@ -1,19 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import nodemailer from "nodemailer";
-import crypto from "crypto";
+import { getBillingStripe } from "@/lib/serviceBilling";
+import { priceDesignSelection } from "@/lib/designPricing";
+import { uploadPrivateReference } from "@/lib/privateReference";
 
 export const runtime = "nodejs";
 
 function clean(value: FormDataEntryValue | null): string {
   if (typeof value !== "string") return "";
   return value.trim();
-}
-
-function parseMoney(value: string): number | null {
-  if (!value) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.round(parsed * 100) / 100 : null;
 }
 
 function parseDateOnly(value: string): Date | null {
@@ -41,53 +37,10 @@ function escapeHtml(value: string): string {
 }
 
 async function uploadToCloudinary(file: File): Promise<string> {
-  const cloudName =
-    process.env.CLOUDINARY_CLOUD_NAME ||
-    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-  if (!cloudName || !apiKey || !apiSecret) {
-    throw new Error(
-      "Cloudinary upload credentials are missing. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET."
-    );
+  if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+    throw new Error("INVALID_REFERENCE_FORMAT");
   }
-
-  if (file.size > 10 * 1024 * 1024) {
-    throw new Error(`"${file.name}" exceeds the 10 MB file limit.`);
-  }
-
-  const timestamp = Math.floor(Date.now() / 1000);
-  const folder = "raf-by-design/design-enquiry-references";
-
-  const signatureBase = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
-  const signature = crypto
-    .createHash("sha1")
-    .update(signatureBase)
-    .digest("hex");
-
-  const upload = new FormData();
-  upload.append("file", file);
-  upload.append("api_key", apiKey);
-  upload.append("timestamp", String(timestamp));
-  upload.append("folder", folder);
-  upload.append("signature", signature);
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
-    {
-      method: "POST",
-      body: upload,
-    }
-  );
-
-  const result = await response.json();
-
-  if (!response.ok || !result?.secure_url) {
-    throw new Error(result?.error?.message || "Cloudinary upload failed.");
-  }
-
-  return result.secure_url;
+  return uploadPrivateReference(file, "raf-by-design/design-enquiry-references", 3 * 1024 * 1024);
 }
 
 function createTransporter() {
@@ -106,6 +59,9 @@ function createTransporter() {
 
 export async function POST(req: Request) {
   try {
+    if (Number(req.headers.get("content-length") || 0) > 4 * 1024 * 1024) {
+      return NextResponse.json({ error: "Attachments must total under 3 MB." }, { status: 413 });
+    }
     const formData = await req.formData();
 
     const email = clean(formData.get("email")).toLowerCase();
@@ -120,8 +76,6 @@ export async function POST(req: Request) {
     const deadlineRaw = clean(formData.get("deadline"));
     const extraRevisions = clean(formData.get("extraRevisions")) === "true";
     const paymentOption = clean(formData.get("paymentOption"));
-    const totalPrice = parseMoney(clean(formData.get("totalPrice")));
-    const dueNow = parseMoney(clean(formData.get("dueNow")));
     const mailchimp = clean(formData.get("mailchimp")) === "true";
 
     if (!email || !name || !details || !serviceValue) {
@@ -134,6 +88,35 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+        name.length > 100 || details.length > 10000 ||
+        !["deposit", "full"].includes(paymentOption)) {
+      return NextResponse.json({ error: "Check your contact details and payment choice." }, { status: 400 });
+    }
+
+    let price: ReturnType<typeof priceDesignSelection>;
+    try {
+      price = priceDesignSelection({
+        serviceId: clean(formData.get("serviceId")),
+        optionIndex: Number(clean(formData.get("optionIndex"))),
+        photoCount: Number(clean(formData.get("photoCount"))),
+        advertPhotoCount: Number(clean(formData.get("advertPhotoCount"))),
+        photoAddOns: {
+          colourTone: clean(formData.get("colourTone")) === "true",
+          singleColour: clean(formData.get("singleColour")) === "true",
+          customEditing: clean(formData.get("customEditing")) === "true",
+        },
+        extraRevisions,
+      });
+    } catch {
+      return NextResponse.json({ error: "Choose a valid design service." }, { status: 400 });
+    }
+
+    const totalPrice = price.requiresQuote ? null : price.totalPence / 100;
+    const amountPence = price.requiresQuote ? null :
+      paymentOption === "full" ? price.totalPence : Math.ceil(price.totalPence / 2);
+    const dueNow = amountPence === null ? null : amountPence / 100;
+
     const uploadedFiles = formData
       .getAll("images")
       .filter(
@@ -141,44 +124,38 @@ export async function POST(req: Request) {
           value instanceof File && value.size > 0
       );
 
+    if (uploadedFiles.length > 5 ||
+        uploadedFiles.some((file) => file.size > 3 * 1024 * 1024) ||
+        uploadedFiles.reduce((total, file) => total + file.size, 0) > 3 * 1024 * 1024) {
+      return NextResponse.json({ error: "Use up to five reference images/PDFs totalling 3 MB." }, { status: 413 });
+    }
+
     const fileUrls = await Promise.all(
       uploadedFiles.map((file) => uploadToCloudinary(file))
     );
 
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: {
-        name,
-      },
-      create: {
-        email,
-        name,
-      },
-    });
+    // A public form must not rename an existing account by submitting its email.
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } }) ||
+      await prisma.user.create({ data: { email, name }, select: { id: true } });
 
     const enquiry = await prisma.designEnquiry.create({
       data: {
         userId: user.id,
         title: title || "Untitled Project",
         details,
-        services: serviceValue
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean),
+        services: [price.description],
         fileUrls,
 
         companyBrand: companyBrand || null,
         deadline: parseDateOnly(deadlineRaw),
         extraRevisions,
-        paymentOption: paymentOption || null,
+        paymentOption: price.requiresQuote ? "quote" : paymentOption,
         totalPrice,
         dueNow,
 
-        status: "new",
+        status: price.requiresQuote ? "new" : "awaiting_payment",
       },
-      include: {
-        user: true,
-      },
+      select: { id: true },
     });
 
     if (
@@ -189,15 +166,9 @@ export async function POST(req: Request) {
     ) {
       const transporter = createTransporter();
 
-      const filesHtml =
-        fileUrls.length > 0
-          ? `<ul>${fileUrls
-              .map(
-                (url, index) =>
-                  `<li><a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">Reference file ${index + 1}</a></li>`
-              )
-              .join("")}</ul>`
-          : "<p>No files uploaded.</p>";
+      const filesHtml = fileUrls.length > 0
+        ? `<p>${fileUrls.length} private reference file(s). Open them from the admin bookings page.</p>`
+        : "<p>No files uploaded.</p>";
 
       await transporter.sendMail({
         from: `"RAF Design Booking" <${process.env.SMTP_USER}>`,
@@ -207,7 +178,7 @@ export async function POST(req: Request) {
           <p><strong>Name:</strong> ${escapeHtml(name)}</p>
           <p><strong>Email:</strong> ${escapeHtml(email)}</p>
           <p><strong>Company / Brand:</strong> ${escapeHtml(companyBrand || "N/A")}</p>
-          <p><strong>Service:</strong> ${escapeHtml(serviceValue)}</p>
+          <p><strong>Service:</strong> ${escapeHtml(price.description)}</p>
           <p><strong>Requested Deadline:</strong> ${escapeHtml(deadlineRaw || "Not specified")}</p>
           <p><strong>Payment Choice:</strong> ${escapeHtml(paymentOption || "Not specified")}</p>
           <p><strong>Total:</strong> ${totalPrice === null ? "N/A" : `£${totalPrice.toFixed(2)}`}</p>
@@ -217,6 +188,8 @@ export async function POST(req: Request) {
           <p><strong>Uploaded Files:</strong></p>
           ${filesHtml}
         `,
+      }).catch((error) => {
+        console.error("Design admin notification failed:", error);
       });
     }
 
@@ -240,7 +213,7 @@ export async function POST(req: Request) {
               },
               body: JSON.stringify({
                 email_address: email,
-                status: "subscribed",
+                status: "pending",
                 merge_fields: { FNAME: name },
               }),
             }
@@ -251,21 +224,75 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        enquiry,
-      },
-      { status: 201 }
-    );
-  } catch (err: any) {
+    let checkoutUrl: string | null = null;
+    if (amountPence !== null) {
+      const payment = await prisma.servicePayment.create({
+        data: {
+          designEnquiryId: enquiry.id,
+          stage: paymentOption === "full" ? "full" : "deposit",
+          amount: amountPence,
+          totalAmount: price.totalPence,
+        },
+      });
+      const stripe = getBillingStripe();
+      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.rafbydesign.co.uk").replace(/\/$/, "");
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: email,
+        line_items: [{
+          quantity: 1,
+          price_data: {
+            currency: "gbp",
+            unit_amount: amountPence,
+            product_data: { name: `${price.service.title} — ${paymentOption === "full" ? "full payment" : "50% deposit"}` },
+          },
+        }],
+        metadata: { servicePaymentId: payment.id },
+        success_url: `${siteUrl}/design/book?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${siteUrl}/design/book?payment=cancelled`,
+      }, { idempotencyKey: `design-checkout-${payment.id}` });
+      await prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: { stripeSessionId: session.id },
+      });
+      checkoutUrl = session.url;
+      if (!checkoutUrl) throw new Error("Stripe did not return a payment link");
+    }
+
+    return NextResponse.json({ success: true, enquiryId: enquiry.id, checkoutUrl },
+      { status: 201, headers: { "Cache-Control": "private, no-store" } });
+  } catch (err: unknown) {
     console.error("Design enquiry creation error:", err);
 
     return NextResponse.json(
-      {
-        error: err?.message || "Failed to create enquiry",
-      },
+      { error: "The design request could not be submitted. Please try again." },
       { status: 500 }
     );
+  }
+}
+
+export async function GET(req: Request) {
+  const sessionId = new URL(req.url).searchParams.get("session_id");
+  if (!sessionId || !/^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(sessionId)) {
+    return NextResponse.json({ error: "Invalid checkout session" }, { status: 400 });
+  }
+  try {
+    const payment = await prisma.servicePayment.findUnique({
+      where: { stripeSessionId: sessionId },
+      select: { id: true, amount: true, status: true },
+    });
+    if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+    const session = await getBillingStripe().checkout.sessions.retrieve(sessionId);
+    if (session.metadata?.servicePaymentId !== payment.id ||
+        session.amount_total !== payment.amount ||
+        session.currency?.toLowerCase() !== "gbp") {
+      return NextResponse.json({ error: "Payment does not match this request" }, { status: 400 });
+    }
+    return NextResponse.json({ paid: payment.status === "paid" && session.payment_status === "paid" },
+      { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    console.error("GET /api/design/enquiry error:", error);
+    return NextResponse.json({ error: "Unable to check payment" }, { status: 500 });
   }
 }

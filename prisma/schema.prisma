@@ -319,6 +319,7 @@ model Booking {
 
   user    User         @relation(fields: [userId], references: [id])
   service MusicService @relation(fields: [serviceId], references: [id])
+  payments ServicePayment[]
 }
 
 //////////////////////
@@ -368,6 +369,28 @@ model DesignEnquiry {
   updatedAt DateTime @default(now()) @updatedAt
 
   user User @relation(fields: [userId], references: [id])
+  payments ServicePayment[]
+}
+
+model ServicePayment {
+  id              String   @id @default(cuid())
+  bookingId       String?
+  designEnquiryId String?
+  stage           String
+  amount          Int
+  totalAmount     Int
+  status          String   @default("pending")
+  stripeSessionId String?  @unique
+  stripeInvoiceId String?  @unique
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  booking       Booking?       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  designEnquiry DesignEnquiry? @relation(fields: [designEnquiryId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, stage])
+  @@unique([designEnquiryId, stage])
 }
 
 model BookingDay {

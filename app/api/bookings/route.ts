@@ -2,7 +2,7 @@ import {
   NextResponse,
 } from "next/server";
 
-import crypto from "crypto";
+import { uploadPrivateReference } from "@/lib/privateReference";
 
 import {
   prisma,
@@ -18,7 +18,7 @@ const EMAIL_PATTERN =
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const MAX_REFERENCE_FILE_SIZE =
-  25 * 1024 * 1024;
+  3 * 1024 * 1024;
 
 const ALLOWED_AUDIO_EXTENSIONS =
   /\.(mp3|wav|flac|m4a|aac|ogg)$/i;
@@ -160,39 +160,6 @@ function isAllowedAudioFile(
 async function uploadToCloudinary(
   file: File
 ): Promise<string> {
-  const cloudName =
-    process.env
-      .CLOUDINARY_CLOUD_NAME ||
-    process.env
-      .NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-
-  const apiKey =
-    process.env
-      .CLOUDINARY_API_KEY;
-
-  const apiSecret =
-    process.env
-      .CLOUDINARY_API_SECRET;
-
-  if (
-    !cloudName ||
-    !apiKey ||
-    !apiSecret
-  ) {
-    throw new Error(
-      "CLOUDINARY_NOT_CONFIGURED"
-    );
-  }
-
-  if (
-    file.size >
-    MAX_REFERENCE_FILE_SIZE
-  ) {
-    throw new Error(
-      "REFERENCE_FILE_TOO_LARGE"
-    );
-  }
-
   if (
     !isAllowedAudioFile(
       file
@@ -203,93 +170,15 @@ async function uploadToCloudinary(
     );
   }
 
-  const timestamp =
-    Math.floor(
-      Date.now() / 1000
-    );
-
-  const folder =
-    "raf-by-design/music-booking-references";
-
-  const signatureBase =
-    `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
-
-  const signature =
-    crypto
-      .createHash(
-        "sha1"
-      )
-      .update(
-        signatureBase
-      )
-      .digest(
-        "hex"
-      );
-
-  const upload =
-    new FormData();
-
-  upload.append(
-    "file",
-    file
-  );
-
-  upload.append(
-    "api_key",
-    apiKey
-  );
-
-  upload.append(
-    "timestamp",
-    String(timestamp)
-  );
-
-  upload.append(
-    "folder",
-    folder
-  );
-
-  upload.append(
-    "signature",
-    signature
-  );
-
-  const response =
-    await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
-      {
-        method:
-          "POST",
-
-        body:
-          upload,
-      }
-    );
-
-  const result =
-    await response.json();
-
-  if (
-    !response.ok ||
-    !result?.secure_url
-  ) {
-    console.error(
-      "Cloudinary booking reference upload failed:",
-      result?.error ||
-        response.status
-    );
-
-    throw new Error(
-      "CLOUDINARY_UPLOAD_FAILED"
-    );
-  }
-
-  return result.secure_url;
+  return uploadPrivateReference(file, "raf-by-design/music-booking-references", MAX_REFERENCE_FILE_SIZE);
 }
 
 async function readPayload(
   request: Request
 ) {
+  if (Number(request.headers.get("content-length") || 0) > 4 * 1024 * 1024) {
+    throw new Error("REFERENCE_FILE_TOO_LARGE");
+  }
   const contentType =
     request.headers.get(
       "content-type"
@@ -317,7 +206,11 @@ async function readPayload(
           !(
             value instanceof
             File
-          )
+          ) &&
+          key !==
+            "referenceFileName" &&
+          key !==
+            "referenceFileUrl"
         ) {
           payload[key] =
             value;
@@ -335,19 +228,32 @@ async function readPayload(
         File &&
       referenceFile.size > 0
     ) {
-      payload.referenceFileName =
-        referenceFile.name;
-
-      payload.referenceFileUrl =
-        await uploadToCloudinary(
-          referenceFile
-        );
+      payload.referenceFile = referenceFile;
     }
 
     return payload;
   }
 
-  return request.json();
+  const payload =
+    await request.json();
+
+  if (
+    !payload ||
+    typeof payload !==
+      "object" ||
+    Array.isArray(payload)
+  ) {
+    return {};
+  }
+
+  // Only the server's upload response can supply a stored file URL.
+  const {
+    referenceFileName: _ignoredName,
+    referenceFileUrl: _ignoredUrl,
+    ...fields
+  } = payload;
+
+  return fields;
 }
 
 async function getOrCreateMusicService(
@@ -517,6 +423,11 @@ export async function POST(
       );
     }
 
+    if (body.referenceFile instanceof File) {
+      body.referenceFileName = body.referenceFile.name.slice(0, 255);
+      body.referenceFileUrl = await uploadToCloudinary(body.referenceFile);
+    }
+
     const recordingDate =
       parseDate(
         body.recordingDate
@@ -637,14 +548,8 @@ export async function POST(
           projectDescription,
         },
 
-        include: {
-          user: {
-            select:
-              safeUserSelect,
-          },
-
-          service:
-            true,
+        select: {
+          id: true,
         },
       });
 
@@ -655,7 +560,7 @@ export async function POST(
         message:
           "Booking request received successfully.",
 
-        booking,
+        bookingId: booking.id,
       },
       201
     );
@@ -674,7 +579,7 @@ export async function POST(
       return jsonResponse(
         {
           error:
-            "Reference audio file must be 25 MB or smaller.",
+            "Reference audio file must be 3 MB or smaller. For a larger file, use the reference link field.",
         },
         400
       );
