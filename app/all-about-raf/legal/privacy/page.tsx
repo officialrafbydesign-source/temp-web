@@ -126,10 +126,10 @@ function LegalDocumentPage({
               Contact & Business Details
             </h2>
             <div className="mt-4 space-y-2 text-base sm:text-lg leading-7 text-zinc-700">
-              <p>Privacy contact: [officialrafbydesign@gmail.com]</p>
-              <p>Registered company name: [RAF BY DESIGN LTD]</p>
-              <p>Company number: [12477691]</p>
-              <p>Registered office: [1 Studland Road, Lodndon, SE26 5NH]</p>
+              <p>Privacy contact: officialrafbydesign@gmail.com</p>
+              <p>Registered company name: RAF BY DESIGN LTD</p>
+              <p>Company number: 12477691</p>
+              <p>Registered office: 1 Studland Road, London, SE26 5NH</p>
             </div>
           </section>
 
