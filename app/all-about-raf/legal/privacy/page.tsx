@@ -35,15 +35,17 @@ const sections = [
   {
     title: "Data Retention",
     body: [
-      "Personal information is kept only for as long as reasonably necessary for the purpose it was collected, including order fulfilment, customer support, accounting, dispute handling and legal obligations.",
-      "Different categories of information may be kept for different periods.",
+      "We keep account details and order history while an account is open so customers can sign in, view purchases and access eligible digital downloads. Order records can include an email address, delivery address, items purchased, amounts, payment and fulfilment status, and tracking details.",
+      "If you ask us to close an account, we review the information linked to it and remove what is no longer needed. Closing an account ends access to its order history and account-linked downloads. We will explain what information we need to retain and why.",
+      "We keep the minimum transaction and accounting records needed for tax and company obligations for six years from the end of the company financial year they relate to, or longer where the law or an ongoing dispute requires it.",
     ],
   },
   {
     title: "Your Rights",
     body: [
       "You may have rights to request access to your personal information, correct inaccurate information, request deletion in certain circumstances, restrict or object to some processing, and withdraw consent where processing is based on consent.",
-      "Requests can be made using the contact details shown on this website. Statutory rights and complaint rights remain unaffected.",
+      "To ask about your information or request account closure, email officialrafbydesign@gmail.com. We will verify and review your request. You can object to use of your information for direct marketing at any time.",
+      "You can also complain to the UK Information Commissioner's Office (ICO) about how your personal information is handled: https://ico.org.uk/make-a-complaint/.",
     ],
   },
   {

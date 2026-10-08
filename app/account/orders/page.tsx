@@ -80,6 +80,12 @@ export default async function AccountOrdersPage() {
                 <p className="mt-2 text-base sm:text-lg text-zinc-700">
                   Signed in as {user.name || user.email}
                 </p>
+                <p className="mt-2 text-sm text-zinc-700">
+                  For account closure or personal data requests, see our{" "}
+                  <Link href="/all-about-raf/legal/privacy" className="font-bold underline underline-offset-2">
+                    Privacy &amp; Cookies notice
+                  </Link>.
+                </p>
               </div>
 
               <LogoutButton />
