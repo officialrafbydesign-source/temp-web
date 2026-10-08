@@ -393,8 +393,7 @@ async function getLatestInstagramPosts(): Promise<
     if (!response.ok) {
       console.error(
         "Instagram media request failed:",
-        response.status,
-        await response.text()
+        response.status
       );
 
       return [];
@@ -443,10 +442,9 @@ async function getLatestInstagramPosts(): Promise<
             "LATEST POST",
 
           imageUrl:
-            item
-              ?.thumbnail_url ||
-            item
-              ?.media_url,
+            item?.media_type === "VIDEO"
+              ? item?.thumbnail_url
+              : item?.media_url,
 
           publishedAt:
             item?.timestamp,

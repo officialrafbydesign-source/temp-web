@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { sanitizeCloudinaryUrl } from "@/lib/utils";
 import CategoryCarousel from "@/components/home/CategoryCarousel";
@@ -128,10 +128,12 @@ function SocialPlatformCarousel({
   title,
   channelUrl,
   posts,
+  showImages,
 }: {
   title: string;
   channelUrl: string;
   posts: SocialPost[];
+  showImages: boolean;
 }) {
   const [current, setCurrent] = useState(0);
 
@@ -202,7 +204,7 @@ function SocialPlatformCarousel({
           rel="noopener noreferrer"
           className="group block bg-zinc-950"
         >
-          {post.imageUrl ? (
+          {post.imageUrl && showImages ? (
             <div className="aspect-video overflow-hidden border-b-2 border-black bg-black">
               <img
                 src={post.imageUrl}
@@ -268,6 +270,103 @@ function SocialPlatformCarousel({
   );
 }
 
+function SocialEmbedPanel({
+  platform,
+  handle,
+  profileUrl,
+}: {
+  platform: "TikTok" | "X";
+  handle: string;
+  profileUrl: string;
+}) {
+  const [enabled, setEnabled] = useState(false);
+  const embedRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = platform === "X"
+      ? "https://platform.twitter.com/widgets.js"
+      : "https://www.tiktok.com/embed.js";
+
+    if (platform === "X") {
+      script.onload = () => {
+        const xWindow = window as Window & {
+          twttr?: { widgets?: { load: (element?: HTMLElement | null) => void } };
+        };
+        xWindow.twttr?.widgets?.load(embedRef.current);
+      };
+    }
+
+    document.body.appendChild(script);
+    return () => { script.remove(); };
+  }, [enabled, platform]);
+
+  return (
+    <section className="min-w-0 overflow-hidden rounded-xl sm:rounded-2xl border-4 border-black bg-zinc-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sm:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+      <div className="border-b-4 border-black bg-black px-4 py-4 text-center">
+        <h3 className="font-raf text-2xl sm:text-3xl uppercase text-red-500">
+          {platform}
+        </h3>
+        <a
+          href={profileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 inline-block text-xs font-black uppercase tracking-widest text-zinc-400 transition hover:text-white"
+        >
+          Open Channel →
+        </a>
+      </div>
+
+      {!enabled ? (
+        <div className="flex min-h-[240px] sm:min-h-[330px] flex-col items-center justify-center p-6 text-center">
+          <p className="font-raf text-2xl uppercase text-white">@{handle}</p>
+          <p className="mt-3 max-w-sm text-sm leading-6 text-zinc-400">
+            Loading this feed connects your browser to {platform}, which may
+            receive information about your visit and use cookies.
+          </p>
+          <button
+            type="button"
+            onClick={() => setEnabled(true)}
+            className="mt-5 rounded-xl border-2 border-black bg-red-600 px-5 py-3 text-sm font-black uppercase text-white transition hover:bg-red-500"
+          >
+            Load {platform} feed
+          </button>
+        </div>
+      ) : (
+        <div ref={embedRef} className="min-h-[330px] overflow-hidden bg-zinc-950 p-2">
+          {platform === "TikTok" ? (
+            <blockquote
+              className="tiktok-embed"
+              cite={profileUrl}
+              data-unique-id={handle}
+              data-embed-type="creator"
+              style={{ maxWidth: 720, minWidth: 288 }}
+            >
+              <section>
+                <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+                  @{handle}
+                </a>
+              </section>
+            </blockquote>
+          ) : (
+            <a
+              className="twitter-timeline"
+              data-theme="dark"
+              data-height="440"
+              href={profileUrl}
+            >
+              Posts by @{handle}
+            </a>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 type Beat = { id: string; title: string; genre?: string; bpm?: number; artworkUrl?: string; };
 type MusicRelease = { id: string; releaseId: string; title: string; artist: string; coverUrl?: string; };
 type ClothingProduct = { id: string; name: string; price: number; imageUrl?: string; imageUrls?: string[]; };
@@ -291,6 +390,7 @@ export default function Home() {
   const [music, setMusic] = useState<MusicRelease[]>([]);
   const [clothing, setClothing] = useState<ClothingProduct[]>([]);
   const [socialFeed, setSocialFeed] = useState<SocialPost[]>([]);
+  const [showSocialImages, setShowSocialImages] = useState(false);
 
   const fetchSocialFeed = async () => {
     try {
@@ -334,7 +434,7 @@ export default function Home() {
     loadHomepage();
     fetchSocialFeed();
 
-    const interval = setInterval(fetchSocialFeed, 60000);
+    const interval = setInterval(fetchSocialFeed, 300000);
     return () => clearInterval(interval);
   }, []);
 
@@ -661,14 +761,27 @@ export default function Home() {
               </h2>
 
               <p className="mt-3 max-w-3xl mx-auto text-sm sm:text-base leading-7 text-zinc-300 text-center">
-                Browse the latest RAF By Design posts and social links from YouTube, Instagram and TikTok.
+                Browse the latest posts from YouTube and Instagram. TikTok and X
+                feeds load when you choose to view them.
               </p>
             </div>
 
-            <div className="grid gap-4 sm:gap-6 xl:grid-cols-3">
+            {socialFeed.some((post) => post.imageUrl && ["YOUTUBE", "INSTAGRAM"].includes(post.platform.toUpperCase())) && (
+              <button
+                type="button"
+                onClick={() => setShowSocialImages(true)}
+                disabled={showSocialImages}
+                className="mb-5 rounded-xl border-2 border-black bg-red-600 px-4 py-2 text-sm font-black uppercase text-white transition hover:bg-red-500 disabled:opacity-60"
+              >
+                {showSocialImages ? "Post images loaded" : "Load YouTube and Instagram images"}
+              </button>
+            )}
+
+            <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
               <SocialPlatformCarousel
                 title="YouTube"
                 channelUrl="https://www.youtube.com/@rafbydesign"
+                showImages={showSocialImages}
                 posts={socialFeed.filter((post) =>
                   post.platform.toLowerCase().includes("youtube")
                 )}
@@ -677,17 +790,22 @@ export default function Home() {
               <SocialPlatformCarousel
                 title="Instagram"
                 channelUrl="https://www.instagram.com/rafbydesign"
+                showImages={showSocialImages}
                 posts={socialFeed.filter((post) =>
                   post.platform.toLowerCase().includes("instagram")
                 )}
               />
 
-              <SocialPlatformCarousel
-                title="TikTok"
-                channelUrl="https://www.tiktok.com/@rafbydesignmusic"
-                posts={socialFeed.filter((post) =>
-                  post.platform.toLowerCase().includes("tiktok")
-                )}
+              <SocialEmbedPanel
+                platform="TikTok"
+                handle="rafbydesignmusic"
+                profileUrl="https://www.tiktok.com/@rafbydesignmusic"
+              />
+
+              <SocialEmbedPanel
+                platform="X"
+                handle="rafbydesign"
+                profileUrl="https://x.com/rafbydesign"
               />
             </div>
           </div>
