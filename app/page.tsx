@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { sanitizeCloudinaryUrl } from "@/lib/utils";
 import CategoryCarousel from "@/components/home/CategoryCarousel";
@@ -127,245 +127,105 @@ function LocalAboutCarousel() {
 function SocialPlatformCarousel({
   title,
   channelUrl,
+  channelHandle,
   posts,
-  showImages,
+  loading,
 }: {
   title: string;
   channelUrl: string;
+  channelHandle: string;
   posts: SocialPost[];
-  showImages: boolean;
+  loading: boolean;
 }) {
   const [current, setCurrent] = useState(0);
+  const [imageFailed, setImageFailed] = useState(false);
+  const currentIndex = Math.min(current, Math.max(posts.length - 1, 0));
+  const post = posts[currentIndex];
+  const latestId = posts[0]?.id;
 
-  useEffect(() => {
-    if (current > posts.length - 1) {
-      setCurrent(0);
-    }
-  }, [posts.length, current]);
+  useEffect(() => { setCurrent(0); }, [latestId]);
+  useEffect(() => { setImageFailed(false); }, [post?.id, post?.imageUrl]);
 
-  const hasPosts = posts.length > 0;
-  const post = hasPosts ? posts[current] : null;
-
-  const prev = () => {
-    if (!hasPosts) return;
-    setCurrent((value) => (value === 0 ? posts.length - 1 : value - 1));
-  };
-
-  const next = () => {
-    if (!hasPosts) return;
-    setCurrent((value) => (value === posts.length - 1 ? 0 : value + 1));
-  };
+  // All thumbnails come from our server; no social widgets are injected here.
+  const imageUrl = post?.imageUrl?.startsWith("/api/social/thumbnail?")
+    ? post.imageUrl : undefined;
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-xl sm:rounded-2xl border-4 border-black bg-zinc-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sm:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-      <div className="flex items-center justify-between gap-3 border-b-4 border-black bg-black px-4 py-4">
-        <div className="min-w-0 flex-1 text-center">
-          <h3 className="font-raf text-2xl sm:text-3xl uppercase text-red-500">
+    <section
+      aria-label={`${title} latest posts`}
+      aria-busy={loading}
+      className="min-w-0 snap-start overflow-hidden rounded-xl border-2 border-black bg-zinc-950 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+    >
+      <div className="flex items-center justify-between gap-2 border-b-2 border-black bg-black px-3 py-2.5">
+        <a href={channelUrl} target="_blank" rel="noopener noreferrer" className="min-w-0">
+          <h3 className="font-raf text-xl uppercase leading-none text-red-500 transition hover:text-red-400">
             {title}
           </h3>
-          <a
-            href={channelUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1 inline-block text-xs font-black uppercase tracking-widest text-zinc-400 transition hover:text-white"
-          >
-            Open Channel →
-          </a>
-        </div>
-
-        <div className="flex shrink-0 gap-2">
+        </a>
+        <div className="flex shrink-0 gap-1">
           <button
             type="button"
-            onClick={prev}
-            disabled={!hasPosts || posts.length <= 1}
+            onClick={() => setCurrent((currentIndex + posts.length - 1) % posts.length)}
+            disabled={posts.length < 2}
             aria-label={`Previous ${title} post`}
-            className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-black text-sm font-black text-white transition hover:bg-red-600 disabled:cursor-default disabled:opacity-30"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600 bg-black text-sm font-black text-white transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 disabled:cursor-default disabled:opacity-30"
           >
             &lt;
           </button>
-
           <button
             type="button"
-            onClick={next}
-            disabled={!hasPosts || posts.length <= 1}
+            onClick={() => setCurrent((currentIndex + 1) % posts.length)}
+            disabled={posts.length < 2}
             aria-label={`Next ${title} post`}
-            className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-black text-sm font-black text-white transition hover:bg-red-600 disabled:cursor-default disabled:opacity-30"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600 bg-black text-sm font-black text-white transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 disabled:cursor-default disabled:opacity-30"
           >
             &gt;
           </button>
         </div>
       </div>
 
-      {post ? (
-        <a
-          key={`${post.platform}-${post.id}`}
-          href={post.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group block bg-zinc-950"
-        >
-          {post.imageUrl && showImages ? (
-            <div className="aspect-video overflow-hidden border-b-2 border-black bg-black">
-              <img
-                src={post.imageUrl}
-                alt={post.headline || post.content || `${title} post`}
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-              />
-            </div>
+      <a
+        href={post?.url || channelUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500"
+        aria-label={post ? `View ${title} post: ${post.headline || post.content || "Latest post"}` : `Open ${title} channel`}
+      >
+        <div className="relative flex h-28 items-center justify-center overflow-hidden border-b-2 border-black bg-gradient-to-br from-zinc-900 to-black sm:h-32">
+          {imageUrl && !imageFailed ? (
+            <img
+              src={imageUrl}
+              alt={post.headline || post.content || `${title} post`}
+              loading="lazy"
+              decoding="async"
+              onError={() => setImageFailed(true)}
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+            />
           ) : (
-            <div className="aspect-video flex items-center justify-center border-b-2 border-black bg-gradient-to-br from-zinc-900 to-black">
-              <span className="font-raf text-3xl uppercase text-white/25">
-                {title}
-              </span>
-            </div>
+            <span className={`font-raf text-2xl uppercase text-white/30 ${loading ? "animate-pulse" : ""}`}>
+              {loading ? "Loading…" : title}
+            </span>
           )}
-
-          <div className="p-5">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-black uppercase tracking-widest text-red-500">
-                {title}
+        </div>
+        <div className="px-3 py-3">
+          <p className="truncate text-xs text-zinc-400">{post?.handle || channelHandle}</p>
+          <h4 className="mt-1.5 line-clamp-2 h-10 text-sm font-bold leading-5 text-white">
+            {post?.headline || post?.content || (loading ? "Finding the latest posts…" : `See the latest on ${title}`)}
+          </h4>
+          <div className="mt-2 flex items-center justify-between gap-2 text-xs text-zinc-400">
+            <span>{post?.timestamp || post?.date || (loading ? "" : "Open channel →")}</span>
+            {post && (
+              <span className="shrink-0 text-white transition group-hover:text-red-400">
+                {posts.length > 1 ? `${currentIndex + 1} / ${posts.length} · ` : ""}View →
               </span>
-
-              <span className="text-xs text-zinc-500">
-                {post.timestamp || post.date || "Recent"}
-              </span>
-            </div>
-
-            <h4 className="mt-3 line-clamp-2 min-h-[48px] text-base sm:text-lg font-bold leading-6 text-white">
-              {post.headline || post.content || "View latest post"}
-            </h4>
-
-            {(post.channelHandle || post.handle) && (
-              <p className="mt-2 text-sm text-zinc-400">
-                {post.channelHandle || post.handle}
-              </p>
             )}
-
-            <div className="mt-5 flex items-center justify-between gap-3">
-              <p className="text-sm font-black text-white transition group-hover:text-red-400">
-                View Post →
-              </p>
-
-              {posts.length > 1 && (
-                <span className="text-xs text-zinc-500">
-                  {current + 1} / {posts.length}
-                </span>
-              )}
-            </div>
           </div>
-        </a>
-      ) : (
-        <div className="flex min-h-[240px] sm:min-h-[330px] flex-col items-center justify-center p-4 sm:p-6 text-center">
-          <p className="font-raf text-2xl uppercase text-white">
-            Visit {title}
-          </p>
-          <p className="mt-3 max-w-xs text-sm leading-6 text-zinc-400">
-            Open the RAF By Design {title} page to view the latest posts.
-          </p>
         </div>
-      )}
+      </a>
     </section>
   );
 }
 
-function SocialEmbedPanel({
-  platform,
-  handle,
-  profileUrl,
-}: {
-  platform: "TikTok" | "X";
-  handle: string;
-  profileUrl: string;
-}) {
-  const [enabled, setEnabled] = useState(false);
-  const embedRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!enabled) return;
-
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = platform === "X"
-      ? "https://platform.twitter.com/widgets.js"
-      : "https://www.tiktok.com/embed.js";
-
-    if (platform === "X") {
-      script.onload = () => {
-        const xWindow = window as Window & {
-          twttr?: { widgets?: { load: (element?: HTMLElement | null) => void } };
-        };
-        xWindow.twttr?.widgets?.load(embedRef.current);
-      };
-    }
-
-    document.body.appendChild(script);
-    return () => { script.remove(); };
-  }, [enabled, platform]);
-
-  return (
-    <section className="min-w-0 overflow-hidden rounded-xl sm:rounded-2xl border-4 border-black bg-zinc-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sm:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-      <div className="border-b-4 border-black bg-black px-4 py-4 text-center">
-        <h3 className="font-raf text-2xl sm:text-3xl uppercase text-red-500">
-          {platform}
-        </h3>
-        <a
-          href={profileUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 inline-block text-xs font-black uppercase tracking-widest text-zinc-400 transition hover:text-white"
-        >
-          Open Channel →
-        </a>
-      </div>
-
-      {!enabled ? (
-        <div className="flex min-h-[240px] sm:min-h-[330px] flex-col items-center justify-center p-6 text-center">
-          <p className="font-raf text-2xl uppercase text-white">@{handle}</p>
-          <p className="mt-3 max-w-sm text-sm leading-6 text-zinc-400">
-            Loading this feed connects your browser to {platform}, which may
-            receive information about your visit and use cookies.
-          </p>
-          <button
-            type="button"
-            onClick={() => setEnabled(true)}
-            className="mt-5 rounded-xl border-2 border-black bg-red-600 px-5 py-3 text-sm font-black uppercase text-white transition hover:bg-red-500"
-          >
-            Load {platform} feed
-          </button>
-        </div>
-      ) : (
-        <div ref={embedRef} className="min-h-[330px] overflow-hidden bg-zinc-950 p-2">
-          {platform === "TikTok" ? (
-            <blockquote
-              className="tiktok-embed"
-              cite={profileUrl}
-              data-unique-id={handle}
-              data-embed-type="creator"
-              style={{ maxWidth: 720, minWidth: 288 }}
-            >
-              <section>
-                <a href={profileUrl} target="_blank" rel="noopener noreferrer">
-                  @{handle}
-                </a>
-              </section>
-            </blockquote>
-          ) : (
-            <a
-              className="twitter-timeline"
-              data-theme="dark"
-              data-height="440"
-              href={profileUrl}
-            >
-              Posts by @{handle}
-            </a>
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
 
 type Beat = { id: string; title: string; genre?: string; bpm?: number; artworkUrl?: string; };
 type MusicRelease = { id: string; releaseId: string; title: string; artist: string; coverUrl?: string; };
@@ -390,21 +250,45 @@ export default function Home() {
   const [music, setMusic] = useState<MusicRelease[]>([]);
   const [clothing, setClothing] = useState<ClothingProduct[]>([]);
   const [socialFeed, setSocialFeed] = useState<SocialPost[]>([]);
-  const [showSocialImages, setShowSocialImages] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(true);
 
-  const fetchSocialFeed = async () => {
-    try {
-      const socialRes = await fetch("/api/social");
-      if (socialRes.ok) {
-        const data = await socialRes.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setSocialFeed(data);
+  useEffect(() => {
+    const controller = new AbortController();
+    let inFlight = false;
+
+    async function refresh() {
+      if (inFlight || controller.signal.aborted) return;
+      inFlight = true;
+      try {
+        const response = await fetch("/api/social", { signal: controller.signal });
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && !controller.signal.aborted) {
+            setSocialFeed(data.filter((post: SocialPost) => !post.id.endsWith("-link")));
+          }
         }
+      } catch {
+        // Keep previously loaded posts during a temporary network failure.
+      } finally {
+        inFlight = false;
+        if (!controller.signal.aborted) setSocialLoading(false);
       }
-    } catch (err) {
-      console.error("Failed to refresh social feed:", err);
     }
-  };
+
+    void refresh();
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 300000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   useEffect(() => {
     async function loadHomepage() {
@@ -432,10 +316,6 @@ export default function Home() {
     }
 
     loadHomepage();
-    fetchSocialFeed();
-
-    const interval = setInterval(fetchSocialFeed, 300000);
-    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -475,8 +355,8 @@ export default function Home() {
           line-height: 1.25rem !important;
         }
 
-        .home-visual-pass .text-\[10px\],
-        .home-visual-pass .text-\[9px\] {
+        .home-visual-pass .text-\\[10px\\],
+        .home-visual-pass .text-\\[9px\\] {
           font-size: 0.75rem !important;
           line-height: 1rem !important;
         }
@@ -488,8 +368,8 @@ export default function Home() {
           line-height: 1.55rem !important;
         }
 
-        .homepage-category-section .text-\[10px\],
-        .homepage-category-section .text-\[9px\] {
+        .homepage-category-section .text-\\[10px\\],
+        .homepage-category-section .text-\\[9px\\] {
           font-size: 0.875rem !important;
           line-height: 1.25rem !important;
         }
@@ -509,10 +389,10 @@ export default function Home() {
           line-height: 1.25rem !important;
         }
 
-        nav .text-\[10px\],
-        nav .text-\[9px\],
-        footer .text-\[10px\],
-        footer .text-\[9px\] {
+        nav .text-\\[10px\\],
+        nav .text-\\[9px\\],
+        footer .text-\\[10px\\],
+        footer .text-\\[9px\\] {
           font-size: 0.75rem !important;
           line-height: 1rem !important;
         }
@@ -577,8 +457,8 @@ export default function Home() {
             line-height: 1rem !important;
           }
 
-          .homepage-category-section .text-\[10px\],
-          .homepage-category-section .text-\[9px\] {
+          .homepage-category-section .text-\\[10px\\],
+          .homepage-category-section .text-\\[9px\\] {
             font-size: 0.64rem !important;
             line-height: 0.9rem !important;
           }
@@ -755,57 +635,36 @@ export default function Home() {
         {/* LIVE SOCIAL FEED */}
         <FadeIn>
           <div className="w-full rounded-xl sm:rounded-2xl bg-black/80 backdrop-blur-md border-4 border-black p-3 sm:p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <div className="border-b-4 border-black pb-3 sm:pb-4 mb-4 sm:mb-6 text-center">
+            <div className="border-b-4 border-black pb-3 mb-4 text-center">
               <h2 className="font-raf text-2xl sm:text-4xl uppercase tracking-wide text-red-500">
                 RAF Social Feed
               </h2>
-
-              <p className="mt-3 max-w-3xl mx-auto text-sm sm:text-base leading-7 text-zinc-300 text-center">
-                Browse the latest posts from YouTube and Instagram. TikTok and X
-                feeds load when you choose to view them.
+              <p className="mt-2 mx-auto text-sm leading-6 text-zinc-300">
+                Latest videos and posts. Select a thumbnail to watch or read more.
               </p>
             </div>
 
-            {socialFeed.some((post) => post.imageUrl && ["YOUTUBE", "INSTAGRAM"].includes(post.platform.toUpperCase())) && (
-              <button
-                type="button"
-                onClick={() => setShowSocialImages(true)}
-                disabled={showSocialImages}
-                className="mb-5 rounded-xl border-2 border-black bg-red-600 px-4 py-2 text-sm font-black uppercase text-white transition hover:bg-red-500 disabled:opacity-60"
-              >
-                {showSocialImages ? "Post images loaded" : "Load YouTube and Instagram images"}
-              </button>
-            )}
-
-            <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
+            <div className="grid grid-flow-col auto-cols-[minmax(220px,75%)] gap-3 overflow-x-auto overscroll-x-contain snap-x snap-proximity pb-2 md:grid-flow-row md:auto-cols-auto md:grid-cols-3 md:overflow-visible">
               <SocialPlatformCarousel
                 title="YouTube"
                 channelUrl="https://www.youtube.com/@rafbydesign"
-                showImages={showSocialImages}
-                posts={socialFeed.filter((post) =>
-                  post.platform.toLowerCase().includes("youtube")
-                )}
+                channelHandle="@rafbydesign"
+                loading={socialLoading}
+                posts={socialFeed.filter((post) => post.platform.toUpperCase() === "YOUTUBE")}
               />
-
               <SocialPlatformCarousel
                 title="Instagram"
                 channelUrl="https://www.instagram.com/rafbydesign"
-                showImages={showSocialImages}
-                posts={socialFeed.filter((post) =>
-                  post.platform.toLowerCase().includes("instagram")
-                )}
+                channelHandle="@rafbydesign"
+                loading={socialLoading}
+                posts={socialFeed.filter((post) => post.platform.toUpperCase() === "INSTAGRAM")}
               />
-
-              <SocialEmbedPanel
-                platform="TikTok"
-                handle="rafbydesignmusic"
-                profileUrl="https://www.tiktok.com/@rafbydesignmusic"
-              />
-
-              <SocialEmbedPanel
-                platform="X"
-                handle="rafbydesign"
-                profileUrl="https://x.com/rafbydesign"
+              <SocialPlatformCarousel
+                title="TikTok"
+                channelUrl="https://www.tiktok.com/@rafbydesignmusic"
+                channelHandle="@rafbydesignmusic"
+                loading={socialLoading}
+                posts={socialFeed.filter((post) => post.platform.toUpperCase() === "TIKTOK")}
               />
             </div>
           </div>
