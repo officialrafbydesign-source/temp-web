@@ -9,6 +9,7 @@ interface SendEmailArgs {
   subject: string;
   html: string;
   text?: string;
+  replyTo?: string;
 }
 
 interface SendOrderEmailArgs {
@@ -103,6 +104,7 @@ export async function sendEmail({
   subject,
   html,
   text,
+  replyTo,
 }: SendEmailArgs) {
   const recipient =
     to.trim();
@@ -136,7 +138,7 @@ export async function sendEmail({
       getSenderAddress(),
 
     replyTo:
-      getReplyToAddress(),
+      replyTo || getReplyToAddress(),
 
     to: [
       recipient,

@@ -9,19 +9,35 @@ export default function ContactPage() {
     email: "",
     inquiryType: "General",
     message: "",
+    website: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const res = await fetch("/api/contact", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-
-    if (res.ok) setSubmitted(true);
+    if (loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.success !== true) {
+        setError(data?.error || "We couldn’t send your message. Please try again.");
+        return;
+      }
+      setSubmitted(true);
+    } catch {
+      setError("We couldn’t send your message. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -68,23 +84,31 @@ export default function ContactPage() {
               {submitted ? (
                 <div className="rounded-xl border-4 border-black bg-black p-6 sm:p-8 text-center text-white">
                   <h3 className="font-raf text-2xl sm:text-3xl uppercase">
-                    Transmission Received
+                    Message Received
                   </h3>
 
                   <p className="mt-3 text-base sm:text-lg leading-7 text-zinc-300">
-                    We will reply via the provided secure terminal address.
+                    Thanks for getting in touch. We’ll reply to the email address you provided.
                   </p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-7">
+                  <div className="absolute -left-[10000px] h-px w-px overflow-hidden" aria-hidden="true">
+                    <label>Website<input name="website" tabIndex={-1} autoComplete="off" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} /></label>
+                  </div>
+                  {error && <p role="alert" className="rounded-lg border-2 border-red-600 bg-red-50 p-3 text-sm font-bold text-red-800">{error}</p>}
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm sm:text-base font-black uppercase tracking-wider text-black">
+                      <label htmlFor="contact-name" className="text-sm sm:text-base font-black uppercase tracking-wider text-black">
                         01. Name
                       </label>
 
                       <input
                         type="text"
+                        id="contact-name"
+                        name="name"
+                        maxLength={120}
+                        autoComplete="name"
                         required
                         value={form.name}
                         onChange={(e) =>
@@ -96,12 +120,16 @@ export default function ContactPage() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm sm:text-base font-black uppercase tracking-wider text-black">
+                      <label htmlFor="contact-email" className="text-sm sm:text-base font-black uppercase tracking-wider text-black">
                         02. Email Address
                       </label>
 
                       <input
                         type="email"
+                        id="contact-email"
+                        name="email"
+                        maxLength={254}
+                        autoComplete="email"
                         required
                         value={form.email}
                         onChange={(e) =>
@@ -114,11 +142,13 @@ export default function ContactPage() {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm sm:text-base font-black uppercase tracking-wider text-black">
+                    <label htmlFor="contact-enquiry" className="text-sm sm:text-base font-black uppercase tracking-wider text-black">
                       03. Enquiry
                     </label>
 
                     <select
+                      id="contact-enquiry"
+                      name="inquiryType"
                       value={form.inquiryType}
                       onChange={(e) =>
                         setForm({ ...form, inquiryType: e.target.value })
@@ -144,11 +174,14 @@ export default function ContactPage() {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm sm:text-base font-black uppercase tracking-wider text-black">
+                    <label htmlFor="contact-message" className="text-sm sm:text-base font-black uppercase tracking-wider text-black">
                       04. Write Message
                     </label>
 
                     <textarea
+                      id="contact-message"
+                      name="message"
+                      maxLength={5000}
                       required
                       rows={6}
                       value={form.message}
@@ -162,9 +195,10 @@ export default function ContactPage() {
 
                   <button
                     type="submit"
+                    disabled={loading}
                     className="w-full rounded-xl border-4 border-black bg-black py-4 px-6 text-base font-black uppercase tracking-widest text-white shadow-[4px_4px_0px_0px_rgba(239,68,68,1)] transition hover:bg-red-600 active:translate-x-1 active:translate-y-1 active:shadow-none"
                   >
-                    Send Message
+                    {loading ? "Sending…" : "Send Message"}
                   </button>
                 </form>
               )}

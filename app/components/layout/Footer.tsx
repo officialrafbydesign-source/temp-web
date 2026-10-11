@@ -1,5 +1,7 @@
 "use client";
 
+import NewsletterSignup from "@/components/forms/NewsletterSignup";
+
 export default function Footer() {
   const openCookieSettings = () => {
     window.dispatchEvent(new Event("raf-open-cookie-settings"));
@@ -54,38 +56,7 @@ export default function Footer() {
               Join mailing list
             </div>
 
-            <div className="flex gap-2">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="
-                  bg-black/50
-                  border border-red-800
-                  text-white
-                  px-3 py-2
-                  text-xs
-                  rounded-md
-                  outline-none
-                  focus:border-red-600
-                  transition
-                "
-              />
-
-              <button
-                className="
-                  bg-red-800
-                  hover:bg-red-700
-                  text-white
-                  px-4
-                  py-2
-                  text-xs
-                  rounded-md
-                  transition
-                "
-              >
-                Join
-              </button>
-            </div>
+            <NewsletterSignup variant="footer" />
           </div>
 
         </div>

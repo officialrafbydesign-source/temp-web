@@ -1,31 +1,19 @@
 import { NextResponse } from "next/server";
-import * as prismaModule from "@/lib/prisma";
+import { subscribeToNewsletter } from "@/lib/newsletter";
+import { isEmail, limitPublicForm, PublicFormError, publicFormFailure, readPublicForm } from "@/lib/publicForms";
 
-const db = (prismaModule as any).db || (prismaModule as any).prisma || (prismaModule as any).default;
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json();
-
-    if (!email || !email.includes("@")) {
-      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
-    }
-
-    // Save to DB (Ensure subscriber / email model exists, or log/pass to external CRM)
-    if (db?.newsletterSubscriber) {
-      await db.newsletterSubscriber.upsert({
-        where: { email },
-        update: {},
-        create: { email },
-      });
-    }
-
-    // If using Resend / Mailchimp API, trigger list addition here
-    console.log(`[NEWSLETTER_SUB] Registered: ${email}`);
-
-    return NextResponse.json({ success: true, message: "Subscribed to Matrix updates." });
+    const body = await readPublicForm(req);
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    if (!isEmail(email)) throw new PublicFormError("Please enter a valid email address.");
+    const limited = await limitPublicForm(req, "newsletter");
+    if (limited) return limited;
+    const subscription = await subscribeToNewsletter(email);
+    return NextResponse.json({ success: true, ...subscription }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    console.error("[NEWSLETTER_POST_ERROR]", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return publicFormFailure(error, "Newsletter signup is temporarily unavailable. Please try again later.");
   }
 }

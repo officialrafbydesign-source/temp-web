@@ -76,30 +76,11 @@ export default function Navbar() {
             />
           </Link>
 
-          {/* Desktop search opens beneath the header without moving the wordmark or links. */}
-          <div className="relative hidden xl:flex items-center ml-4">
-            <button
-              type="button"
-              onClick={() => setSearchOpen((current) => !current)}
-              className="p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white/70 hover:text-white"
-              title="Search Site"
-              aria-label="Search site"
-              aria-expanded={searchOpen}
-            >
-              🔍
-            </button>
-            {searchOpen && (
-              <form onSubmit={handleSearchSubmit} className="absolute left-0 top-[calc(100%+2rem)] z-30 flex items-center w-72 rounded-md border-2 border-zinc-700 bg-black p-2 shadow-xl">
-                <input type="text" placeholder="SEARCH RAF..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="min-w-0 flex-1 bg-zinc-900 border-2 border-black px-3 py-2 text-xs font-mono text-white rounded-l-md focus:outline-none focus:border-red-500" autoFocus />
-                <button type="submit" className="bg-red-600 border-2 border-l-0 border-black px-3 py-2 text-xs font-mono font-bold text-black rounded-r-md uppercase hover:bg-red-500 transition">GO</button>
-                <button type="button" onClick={() => setSearchOpen(false)} className="ml-2 px-1 text-zinc-400 text-xs hover:text-white" aria-label="Close search">✕</button>
-              </form>
-            )}
-          </div>
+
         </div>
 
         {/* RAF / HIPHOP100 logo keeps its own space in the header row. */}
-        <div className="flex flex-1 xl:flex-none min-w-0 items-center justify-center gap-2 mx-2 z-10 xl:ml-6 xl:mr-auto xl:shrink-0">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-10 xl:static xl:translate-x-0 xl:translate-y-0 xl:ml-6 xl:mr-auto xl:shrink-0">
           {isHipHop100 ? (
             <Link
               href="/clothing/hiphop100"
@@ -117,16 +98,20 @@ export default function Navbar() {
               <span className="relative block w-9 h-12 sm:w-12 sm:h-14 xl:w-14 xl:h-16 shrink-0">
                 <Image src="/images/logo.png" alt="RAF By Design logo" fill priority sizes="(max-width: 639px) 36px, (max-width: 1279px) 48px, 56px" className="object-contain" />
               </span>
-              <span className="font-raf whitespace-nowrap text-[10px] sm:text-xs xl:text-xl leading-tight text-white">RAF BY DESIGN</span>
+              <span className="font-raf whitespace-nowrap text-[10px] max-[359px]:text-[8px] sm:text-xs xl:text-xl leading-tight text-white">RAF BY DESIGN</span>
             </Link>
           )}
+        </div>
+
+        {/* MOBILE CONTROLS */}
+        <div className="flex xl:hidden shrink-0 items-center gap-0.5 min-[360px]:gap-1 z-20">
           <button
             type="button"
             onClick={() => {
               setSearchOpen((current) => !current);
               setMobileOpen(false);
             }}
-            className="xl:hidden shrink-0 p-1.5 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white"
+            className="flex h-8 w-7 sm:h-auto sm:w-auto items-center justify-center p-0 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white"
             title="Search Site"
             aria-label="Search site"
             aria-expanded={searchOpen}
@@ -134,14 +119,10 @@ export default function Navbar() {
             🔍
           </button>
 
-        </div>
-
-        {/* MOBILE CONTROLS */}
-        <div className="flex xl:hidden shrink-0 items-center gap-1 z-20">
           <Link
             href="/account/orders"
             onClick={() => setMobileOpen(false)}
-            className={`p-1.5 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition ${
+            className={`flex h-8 w-7 sm:h-auto sm:w-auto items-center justify-center p-0 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition ${
               pathname.startsWith("/account")
                 ? "text-red-500"
                 : "text-white"
@@ -155,7 +136,7 @@ export default function Navbar() {
           <Link
             href="/cart"
             onClick={() => setMobileOpen(false)}
-            className="relative p-1.5 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition"
+            className="relative flex h-8 w-7 sm:h-auto sm:w-auto items-center justify-center p-0 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition"
             aria-label="Open cart"
           >
             <span className="text-sm">🛒</span>
@@ -173,7 +154,7 @@ export default function Navbar() {
               setMobileOpen((current) => !current);
               setSearchOpen(false);
             }}
-            className="p-1.5 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white font-black"
+            className="flex h-8 w-7 sm:h-auto sm:w-auto items-center justify-center p-0 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white font-black"
             aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={mobileOpen}
           >
@@ -287,6 +268,27 @@ export default function Navbar() {
             Contact
           </Link>
 
+          {/* Desktop search opens beneath the header without moving the wordmark or links. */}
+          <div className="relative flex items-center">
+            <button
+              type="button"
+              onClick={() => setSearchOpen((current) => !current)}
+              className="p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white/70 hover:text-white"
+              title="Search Site"
+              aria-label="Search site"
+              aria-expanded={searchOpen}
+            >
+              🔍
+            </button>
+            {searchOpen && (
+              <form onSubmit={handleSearchSubmit} className="absolute right-0 top-[calc(100%+2rem)] z-30 flex items-center w-72 rounded-md border-2 border-zinc-700 bg-black p-2 shadow-xl">
+                <input type="search" maxLength={100} aria-label="Search RAF By Design" placeholder="SEARCH RAF..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="min-w-0 flex-1 bg-zinc-900 border-2 border-black px-3 py-2 text-xs font-mono text-white rounded-l-md focus:outline-none focus:border-red-500" autoFocus />
+                <button type="submit" className="bg-red-600 border-2 border-l-0 border-black px-3 py-2 text-xs font-mono font-bold text-black rounded-r-md uppercase hover:bg-red-500 transition">GO</button>
+                <button type="button" onClick={() => setSearchOpen(false)} className="ml-2 px-1 text-zinc-400 text-xs hover:text-white" aria-label="Close search">✕</button>
+              </form>
+            )}
+          </div>
+
           {/* CUSTOMER ACCOUNT TRIGGER */}
           <Link
             href="/account/orders"
@@ -321,7 +323,9 @@ export default function Navbar() {
           <div className="xl:hidden absolute left-0 right-0 top-full border-t-2 border-black bg-black/95 p-3 shadow-lg">
             <form onSubmit={handleSearchSubmit} className="flex items-center w-full">
               <input
-                type="text"
+                type="search"
+                maxLength={100}
+                aria-label="Search RAF By Design"
                 placeholder="SEARCH RAF..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
