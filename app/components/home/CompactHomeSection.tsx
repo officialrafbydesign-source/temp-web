@@ -119,6 +119,7 @@ export const compactHomepageCss = `
   .home-compact .home-card-image { position: relative; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #111113; border-bottom: 1px solid #27272a; }
   .home-compact .home-card-image > img { height: 100%; width: 100%; object-fit: contain; padding: 4px; }
   .home-compact .home-card-image-inset > img { width: 78%; height: 78%; max-width: 230px; object-fit: contain; padding: 8px; }
+  .home-compact [aria-labelledby="services-heading"] .home-card-image > img { width: 100%; height: 100%; object-fit: cover; padding: 0; }
   .home-compact .home-card-copy { min-width: 0; padding: 9px 11px; display: flex; flex-direction: column; }
   .home-compact .home-card-copy h3 { margin: 0; height: 34px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 13px; line-height: 17px; font-weight: 700; }
   .home-compact .home-card-copy p { margin: 3px 0 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #d4d4d8; font-size: 12px; line-height: 16px; }

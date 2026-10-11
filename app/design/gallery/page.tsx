@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import PageBanner from "@/components/layout/PageBanner";
 
 type GalleryImage = {
   url: string;
@@ -173,7 +174,7 @@ export default function DesignGalleryPage() {
   }, []);
 
   return (
-    <main className="min-h-screen w-full relative text-white bg-transparent pb-24">
+    <main className="min-h-screen w-full relative text-white bg-transparent pb-24 pt-24">
       <style>
         {`
           @font-face {
@@ -188,10 +189,6 @@ export default function DesignGalleryPage() {
             font-family: "RAF Font Demo", sans-serif;
           }
 
-          .section-title-panel {
-            background-color: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
-          }
 
           .brutalist-scrollbar::-webkit-scrollbar {
             height: 12px;
@@ -210,27 +207,9 @@ export default function DesignGalleryPage() {
         `}
       </style>
 
-      {/* FULL WIDTH HEADER BANNER */}
-      <header className="section-title-panel w-full border-b-4 border-black pt-28 pb-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center justify-center text-center gap-3">
-          <h1
-            className="raf-heading text-2xl md:text-3xl lg:text-4xl font-black tracking-wide uppercase text-white drop-shadow-[0_4px_0_rgba(0,0,0,1)]"
-            style={{
-              WebkitTextStroke: "1.5px #000",
-              paintOrder: "stroke fill",
-            }}
-          >
-            Design Gallery
-          </h1>
-
-          {loading && (
-            <div className="flex items-center gap-2 bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded font-mono text-[10px] text-blue-400 uppercase tracking-widest">
-              <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-              Syncing Cloudinary...
-            </div>
-          )}
-        </div>
-      </header>
+      <PageBanner title="Design Gallery" description="Explore selected logos, artwork, branding and design projects created by RAF By Design." fullWidth>
+        {loading && <p role="status" className="mt-3 text-sm text-white/60">Loading gallery…</p>}
+      </PageBanner>
 
       {/* MAIN CONTENT STREAM */}
       <div className="relative left-1/2 w-screen max-w-none -translate-x-1/2 px-6 pt-12 space-y-16 z-10">

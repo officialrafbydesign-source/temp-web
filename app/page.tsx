@@ -22,8 +22,8 @@ const categories: HomeTile[] = [
 ];
 
 const services: HomeTile[] = [
-  { id: "music-services", title: "Music Services", subtitle: "Production · Recording · Mixing · Mastering", href: "/beats/services", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784140412/Music_Services_Image_hadkro.png", insetImage: true },
-  { id: "design-services", title: "Design Services", subtitle: "Branding · Artwork · Print · Digital Design", href: "/design/services", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068279/Design_Services_Image_jeaxt6.jpg", insetImage: true },
+  { id: "music-services", title: "Music Services", subtitle: "Production · Recording · Mixing · Mastering", href: "/beats/services", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784140412/Music_Services_Image_hadkro.png" },
+  { id: "design-services", title: "Design Services", subtitle: "Branding · Artwork · Print · Digital Design", href: "/design/services", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068279/Design_Services_Image_jeaxt6.jpg" },
 ];
 
 const about: HomeTile[] = [

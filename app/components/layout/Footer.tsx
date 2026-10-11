@@ -32,22 +32,19 @@ export default function Footer() {
               Follow
             </div>
 
-            <div className="flex gap-5 text-white/70 text-sm">
-              <a href="#" className="hover:text-white transition">
+            <div className="flex flex-wrap gap-5 text-white/70 text-sm">
+              <a href="https://www.instagram.com/rafbydesign" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
                 Instagram
               </a>
 
-              <a href="#" className="hover:text-white transition">
+              <a href="https://www.youtube.com/@rafbydesign" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
                 YouTube
               </a>
 
-              <a href="#" className="hover:text-white transition">
+              <a href="https://www.tiktok.com/@rafbydesignmusic" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
                 TikTok
               </a>
 
-              <a href="#" className="hover:text-white transition">
-                Twitter
-              </a>
             </div>
           </div>
 

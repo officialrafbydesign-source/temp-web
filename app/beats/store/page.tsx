@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import PageBanner from "@/components/layout/PageBanner";
 import { useAudioStore, Track } from "@/lib/audioStore";
 import {
   Play,
@@ -342,19 +343,9 @@ export default function BeatStorePage() {
           .font-raf {
             font-family: "RAF Font Demo", sans-serif;
           }
-          .section-title-panel {
-            background-color: #4b0505;
-          }
         `}
       </style>
-      {/* HEADER SECTION */}
-      <section className="section-title-panel w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] border-y border-red-500/30 shadow-2xl shadow-red-950/30">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 py-6 text-center">
-          <h1 className="font-raf text-2xl md:text-5xl lg:text-6xl tracking-wide uppercase text-white">
-            Beat Store
-          </h1>
-        </div>
-      </section>
+      <PageBanner title="Beat Store" description="Browse original instrumentals, preview beats and choose the licence that fits your release." />
       {/* MAIN CONTAINER */}
       <section className="w-full max-w-[1800px] mx-auto px-2.5 sm:px-4 md:px-8 space-y-4 md:space-y-8 pt-4 md:pt-8 relative z-10">
         {/* TOP SEARCH BAR & SORT HEADER */}

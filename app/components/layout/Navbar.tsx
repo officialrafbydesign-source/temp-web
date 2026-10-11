@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { UserRound } from "lucide-react";
+import { useCart } from "@/app/context/CartContext";
 
 const beatsLinks = [
   { label: "Beat Store", href: "/beats/store" },
@@ -42,7 +43,8 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const [cartCount] = useState(0);
+  const { cart } = useCart();
+  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
   const isHipHop100 = pathname.startsWith("/clothing/hiphop100");
 
@@ -63,57 +65,35 @@ export default function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 w-full z-50 border-b-4 border-black shadow-md backdrop-blur-md bg-black/90">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 xl:px-6 h-24 flex items-center justify-between relative">
+      <div className="w-full mx-auto px-3 sm:px-4 xl:px-6 h-24 flex items-center justify-between relative">
         {/* LEFT SIDE: Mascot */}
         <div className="flex items-center shrink-0 z-20">
           <Link href="/" onClick={() => setMobileOpen(false)}>
             <img
               src="/images/mascot.png"
               alt="RAF Mascot"
-              className="h-8 sm:h-12 xl:h-16 w-auto object-contain transition hover:scale-105"
+              className="h-6 sm:h-12 xl:h-16 w-auto object-contain transition hover:scale-105"
             />
           </Link>
 
-          {/* Desktop Search */}
+          {/* Desktop search opens beneath the header without moving the wordmark or links. */}
           <div className="relative hidden xl:flex items-center ml-4">
-            {searchOpen ? (
-              <form
-                onSubmit={handleSearchSubmit}
-                className="flex items-center animate-fade-in"
-              >
-                <input
-                  type="text"
-                  placeholder="SEARCH RAF..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-zinc-900 border-2 border-black px-3 py-1 text-xs font-mono text-white rounded-l-md focus:outline-none focus:border-red-500 w-40"
-                  autoFocus
-                />
-
-                <button
-                  type="submit"
-                  className="bg-red-600 border-2 border-l-0 border-black px-3 py-1 text-xs font-mono font-bold text-black rounded-r-md uppercase hover:bg-red-500 transition"
-                >
-                  GO
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSearchOpen(false)}
-                  className="text-zinc-500 text-xs font-mono ml-2 hover:text-white"
-                >
-                  [X]
-                </button>
+            <button
+              type="button"
+              onClick={() => setSearchOpen((current) => !current)}
+              className="p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white/70 hover:text-white"
+              title="Search Site"
+              aria-label="Search site"
+              aria-expanded={searchOpen}
+            >
+              🔍
+            </button>
+            {searchOpen && (
+              <form onSubmit={handleSearchSubmit} className="absolute left-0 top-[calc(100%+2rem)] z-30 flex items-center w-72 rounded-md border-2 border-zinc-700 bg-black p-2 shadow-xl">
+                <input type="text" placeholder="SEARCH RAF..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="min-w-0 flex-1 bg-zinc-900 border-2 border-black px-3 py-2 text-xs font-mono text-white rounded-l-md focus:outline-none focus:border-red-500" autoFocus />
+                <button type="submit" className="bg-red-600 border-2 border-l-0 border-black px-3 py-2 text-xs font-mono font-bold text-black rounded-r-md uppercase hover:bg-red-500 transition">GO</button>
+                <button type="button" onClick={() => setSearchOpen(false)} className="ml-2 px-1 text-zinc-400 text-xs hover:text-white" aria-label="Close search">✕</button>
               </form>
-            ) : (
-              <button
-                onClick={() => setSearchOpen(true)}
-                className="p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white/70 hover:text-white"
-                title="Search Site"
-                aria-label="Search site"
-              >
-                🔍
-              </button>
             )}
           </div>
         </div>
@@ -133,19 +113,11 @@ export default function Navbar() {
               />
             </Link>
           ) : (
-            <Link
-              href="/"
-              onClick={() => setMobileOpen(false)}
-              className="block relative w-14 h-14 sm:w-20 sm:h-16 xl:w-16 xl:h-16 bg-black border-2 border-white/10 rounded-md transition hover:scale-105"
-            >
-              <Image
-                src="/images/logo.png"
-                alt="Main RAF Logo"
-                fill
-                priority
-                sizes="(max-width: 639px) 56px, (max-width: 1279px) 80px, 64px"
-                className="object-contain p-1"
-              />
+            <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-1.5 sm:gap-3 transition hover:opacity-80" aria-label="RAF By Design home">
+              <span className="relative block w-7 h-10 sm:w-12 sm:h-14 xl:w-14 xl:h-16 shrink-0">
+                <Image src="/images/logo.png" alt="RAF By Design logo" fill priority sizes="(max-width: 639px) 28px, (max-width: 1279px) 48px, 56px" className="object-contain" />
+              </span>
+              <span className="font-raf w-14 sm:w-auto sm:whitespace-nowrap text-[11px] sm:text-lg xl:text-xl leading-tight text-white">RAF BY DESIGN</span>
             </Link>
           )}
         </div>
@@ -209,7 +181,7 @@ export default function Navbar() {
         </div>
 
         {/* DESKTOP NAVIGATION */}
-        <div className="hidden xl:flex items-center gap-6 z-10">
+        <div className="ml-auto hidden xl:flex items-center gap-4 2xl:gap-6 shrink-0 z-10">
           {/* BEATS DROPDOWN */}
           <div className="relative group">
             <Link

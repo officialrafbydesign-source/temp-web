@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
-import BackgroundLayer from "@/components/layout/BackgroundLayer";
+import PageBanner from "@/components/layout/PageBanner";
 
 import { DESIGN_SERVICES_CATALOG, priceDesignSelection } from "@/lib/designPricing";
 
@@ -288,25 +288,10 @@ export default function DesignBookingFormPage() {
           font-family: "RAF Font Demo", sans-serif;
         }
 
-        .section-title-panel {
-          background-color: rgba(0,0,0,0.6);
-          backdrop-filter: blur(4px);
-        }
       `}</style>
 
-      {/* HEADER OUTSIDE BACKGROUND LAYOUT CONSTRAINT */}
-      <div className="relative z-30 pt-24">
-        <header className="section-title-panel relative left-1/2 w-screen max-w-none -translate-x-1/2 border-b-4 border-black">
-          <div className="w-full px-6 py-10 text-center">
-            <h1 className="raf-heading text-3xl md:text-5xl lg:text-6xl tracking-wide uppercase text-white">
-              DESIGN SERVICE BOOKING
-            </h1>
-          </div>
-        </header>
-      </div>
-
-      <BackgroundLayer>
-        <main className="min-h-screen text-white relative w-full bg-transparent pb-20">
+      <main className="min-h-screen text-white relative w-full bg-transparent pb-20 pt-24">
+        <PageBanner title="Design Service Booking" description="Tell us about your project, choose a design service and see your quote or payment options." fullWidth />
           {/* CENTERED FORM BLOCK - MATCHES BEATS BOOKING LAYOUT */}
           <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-6 pt-10">
           {checkoutReturn === "paid" || checkoutReturn === "processing" ? (
@@ -340,7 +325,7 @@ export default function DesignBookingFormPage() {
           ) : (
             <form
               onSubmit={handleSubmit}
-              className="rounded-2xl border-4 border-black bg-black/85 backdrop-blur-md p-6 sm:p-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-8"
+              className="space-y-8 py-6 sm:py-10"
             >
               {errorMsg && (
                 <div className="p-4 bg-blue-950/80 border-2 border-blue-600 text-blue-100 text-sm font-mono rounded-lg">
@@ -973,7 +958,6 @@ export default function DesignBookingFormPage() {
           )}
           </div>
         </main>
-      </BackgroundLayer>
     </>
   );
 }
