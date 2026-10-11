@@ -438,22 +438,20 @@ function ClothingContent() {
   };
 
   return (
-    <main
-      className="min-h-screen text-white pb-24 pt-20 relative font-mono"
-      style={{
-        backgroundImage:
-          "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.75)), url('https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068302/WEBSITE_BACKGROUND_YELLOW_mymrsd.jpg')",
-
-        backgroundAttachment:
-          "fixed",
-
-        backgroundPosition:
-          "center center",
-
-        backgroundSize:
-          "cover",
-      }}
-    >
+    <main className="clothing-store min-h-screen text-white pb-24 pt-24 relative font-mono" style={{ isolation: "isolate" }}>
+      <style>{`
+        .clothing-store::before {
+          content: "";
+          position: fixed;
+          inset: 0;
+          z-index: -1;
+          pointer-events: none;
+          background-image: linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.75)), url('https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068302/WEBSITE_BACKGROUND_YELLOW_mymrsd.jpg');
+          background-position: center center;
+          background-repeat: no-repeat;
+          background-size: cover;
+        }
+      `}</style>
       <header className="w-full bg-black/85 backdrop-blur-md border-b-4 border-black">
         <div className="w-full px-6 py-10 text-center">
           <h1 className="font-raf text-3xl md:text-5xl lg:text-6xl tracking-wide uppercase text-amber-400">

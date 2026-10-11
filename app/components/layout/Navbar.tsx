@@ -99,7 +99,7 @@ export default function Navbar() {
         </div>
 
         {/* RAF / HIPHOP100 logo keeps its own space in the header row. */}
-        <div className="flex items-center justify-center mx-2 shrink-0 z-10 xl:ml-6 xl:mr-auto">
+        <div className="flex flex-1 xl:flex-none min-w-0 items-center justify-center gap-2 mx-2 z-10 xl:ml-6 xl:mr-auto xl:shrink-0">
           {isHipHop100 ? (
             <Link
               href="/clothing/hiphop100"
@@ -113,34 +113,35 @@ export default function Navbar() {
               />
             </Link>
           ) : (
-            <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-1.5 sm:gap-3 transition hover:opacity-80" aria-label="RAF By Design home">
-              <span className="relative block w-7 h-10 sm:w-12 sm:h-14 xl:w-14 xl:h-16 shrink-0">
-                <Image src="/images/logo.png" alt="RAF By Design logo" fill priority sizes="(max-width: 639px) 28px, (max-width: 1279px) 48px, 56px" className="object-contain" />
+            <Link href="/" onClick={() => setMobileOpen(false)} className="flex flex-col xl:flex-row items-center gap-1 xl:gap-3 transition hover:opacity-80" aria-label="RAF By Design home">
+              <span className="relative block w-9 h-12 sm:w-12 sm:h-14 xl:w-14 xl:h-16 shrink-0">
+                <Image src="/images/logo.png" alt="RAF By Design logo" fill priority sizes="(max-width: 639px) 36px, (max-width: 1279px) 48px, 56px" className="object-contain" />
               </span>
-              <span className="font-raf w-14 sm:w-auto sm:whitespace-nowrap text-[11px] sm:text-lg xl:text-xl leading-tight text-white">RAF BY DESIGN</span>
+              <span className="font-raf whitespace-nowrap text-[10px] sm:text-xs xl:text-xl leading-tight text-white">RAF BY DESIGN</span>
             </Link>
           )}
-        </div>
-
-        {/* MOBILE CONTROLS */}
-        <div className="flex xl:hidden items-center gap-1 z-20">
           <button
             type="button"
             onClick={() => {
               setSearchOpen((current) => !current);
               setMobileOpen(false);
             }}
-            className="p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white"
+            className="xl:hidden shrink-0 p-1.5 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white"
             title="Search Site"
             aria-label="Search site"
+            aria-expanded={searchOpen}
           >
             🔍
           </button>
 
+        </div>
+
+        {/* MOBILE CONTROLS */}
+        <div className="flex xl:hidden shrink-0 items-center gap-1 z-20">
           <Link
             href="/account/orders"
             onClick={() => setMobileOpen(false)}
-            className={`p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition ${
+            className={`p-1.5 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition ${
               pathname.startsWith("/account")
                 ? "text-red-500"
                 : "text-white"
@@ -154,7 +155,7 @@ export default function Navbar() {
           <Link
             href="/cart"
             onClick={() => setMobileOpen(false)}
-            className="relative p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition"
+            className="relative p-1.5 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition"
             aria-label="Open cart"
           >
             <span className="text-sm">🛒</span>
@@ -172,7 +173,7 @@ export default function Navbar() {
               setMobileOpen((current) => !current);
               setSearchOpen(false);
             }}
-            className="p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white font-black"
+            className="p-1.5 sm:p-2 bg-zinc-900 hover:bg-zinc-800 border-2 border-black rounded-md transition text-white font-black"
             aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={mobileOpen}
           >

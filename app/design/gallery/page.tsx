@@ -207,12 +207,12 @@ export default function DesignGalleryPage() {
         `}
       </style>
 
-      <PageBanner title="Design Gallery" description="Explore selected logos, artwork, branding and design projects created by RAF By Design." fullWidth>
+      <PageBanner title="Design Gallery" description="Explore selected logos, artwork, branding and design projects created by RAF By Design.">
         {loading && <p role="status" className="mt-3 text-sm text-white/60">Loading gallery…</p>}
       </PageBanner>
 
       {/* MAIN CONTENT STREAM */}
-      <div className="relative left-1/2 w-screen max-w-none -translate-x-1/2 px-6 pt-12 space-y-16 z-10">
+      <div className="relative w-full px-6 pt-12 space-y-16 z-10">
         {gallerySections.map((category) => (
           <GallerySection
             key={category.service}

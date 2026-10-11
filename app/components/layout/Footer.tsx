@@ -7,7 +7,7 @@ export default function Footer() {
 
   return (
     <footer
-      className="border-t border-red-950 mt-16"
+      className="relative shrink-0 border-t border-red-950 mt-16"
       style={{ backgroundColor: "#1a0000" }} // darker than navbar
     >
       <div className="max-w-6xl mx-auto px-6 py-10">

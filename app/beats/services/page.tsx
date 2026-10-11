@@ -1,5 +1,7 @@
 "use client";
 
+import PageBanner from "@/components/layout/PageBanner";
+
 import { useState } from "react";
 import Link from "next/link";
 import FadeIn from "@/components/FadeIn";
@@ -113,13 +115,7 @@ export default function BeatServicesPage() {
       }}
     >
       {/* HEADER */}
-      <header className="w-full bg-black/60 backdrop-blur-sm border-b-4 border-black">
-        <div className="max-w-7xl mx-auto px-6 py-10 text-center">
-          <h1 className="font-raf text-3xl md:text-5xl lg:text-6xl tracking-wide uppercase text-white">
-            MUSIC SERVICES
-          </h1>
-        </div>
-      </header>
+      <PageBanner title="Music Services" description="Explore recording, mixing, audio editing and custom beat production services." />
 
       {/* MAIN CONTENT CONTAINER */}
       <section className="w-full max-w-7xl mx-auto px-4 md:px-8 space-y-6 pt-6 relative z-10">

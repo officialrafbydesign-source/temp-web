@@ -1,5 +1,7 @@
 "use client";
 
+import PageBanner from "@/components/layout/PageBanner";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
@@ -299,28 +301,12 @@ export default function ServicesPage() {
             font-family: "RAF Font Demo", sans-serif;
           }
 
-          .section-title-panel {
-            background-color: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
-          }
         `}
       </style>
 
       <div className="relative z-10 pt-24 pb-20 space-y-12">
         {/* HEADER SECTION */}
-        <header className="section-title-panel relative left-1/2 w-screen max-w-none -translate-x-1/2 border-b-4 border-black">
-          <div className="max-w-7xl mx-auto px-6 py-10 text-center">
-            <h1
-              className="raf-heading text-3xl md:text-5xl lg:text-6xl font-black tracking-wide uppercase text-white drop-shadow-[0_4px_0_rgba(0,0,0,1)]"
-              style={{
-                WebkitTextStroke: "2px #000",
-                paintOrder: "stroke fill",
-              }}
-            >
-              Design Services
-            </h1>
-          </div>
-        </header>
+        <PageBanner title="Design Services" description="Explore graphic design services for branding, artwork, print and digital projects." />
 
         <div className="max-w-[1440px] mx-auto px-6 space-y-16">
           {/* CORE SERVICES SECTION */}

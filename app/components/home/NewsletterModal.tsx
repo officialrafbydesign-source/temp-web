@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 export default function NewsletterModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -40,7 +41,7 @@ export default function NewsletterModal() {
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
       <div className="w-full max-w-md bg-white text-black border-8 border-black rounded-2xl shadow-[8px_8px_0px_0px_rgba(239,68,68,1)] p-6 pt-12 relative" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
         <button
@@ -86,6 +87,7 @@ export default function NewsletterModal() {
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -291,7 +291,7 @@ export default function DesignBookingFormPage() {
       `}</style>
 
       <main className="min-h-screen text-white relative w-full bg-transparent pb-20 pt-24">
-        <PageBanner title="Design Service Booking" description="Tell us about your project, choose a design service and see your quote or payment options." fullWidth />
+        <PageBanner title="Design Service Booking" description="Tell us about your project, choose a design service and see your quote or payment options." />
           {/* CENTERED FORM BLOCK - MATCHES BEATS BOOKING LAYOUT */}
           <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-6 pt-10">
           {checkoutReturn === "paid" || checkoutReturn === "processing" ? (
@@ -325,7 +325,7 @@ export default function DesignBookingFormPage() {
           ) : (
             <form
               onSubmit={handleSubmit}
-              className="space-y-8 py-6 sm:py-10"
+              className="rounded-2xl border-4 border-black bg-black/85 backdrop-blur-md p-6 sm:p-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-8"
             >
               {errorMsg && (
                 <div className="p-4 bg-blue-950/80 border-2 border-blue-600 text-blue-100 text-sm font-mono rounded-lg">
@@ -340,7 +340,7 @@ export default function DesignBookingFormPage() {
 
               {/* SECTION 1: CONTACT DETAILS */}
               <div className="space-y-4">
-                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-500 border-b border-zinc-800 pb-2">
+                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-400 border-b border-zinc-800 pb-2">
                   01. Contact Information
                 </h3>
 
@@ -408,7 +408,7 @@ export default function DesignBookingFormPage() {
 
               {/* SECTION 2: SERVICE SELECTION */}
               <div className="space-y-4">
-                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-500 border-b border-zinc-800 pb-2">
+                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-400 border-b border-zinc-800 pb-2">
                   02. Service Configuration
                 </h3>
 
@@ -610,7 +610,7 @@ export default function DesignBookingFormPage() {
 
               {/* SECTION 3: PROJECT DETAILS */}
               <div className="space-y-4">
-                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-500 border-b border-zinc-800 pb-2">
+                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-400 border-b border-zinc-800 pb-2">
                   03. Project Overview
                 </h3>
 
@@ -656,7 +656,7 @@ export default function DesignBookingFormPage() {
 
               {/* SECTION 4: DEADLINE & REVISIONS */}
               <div className="space-y-4">
-                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-500 border-b border-zinc-800 pb-2">
+                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-400 border-b border-zinc-800 pb-2">
                   04. Schedule & Revisions
                 </h3>
 
@@ -712,7 +712,7 @@ export default function DesignBookingFormPage() {
 
               {/* SECTION 5: REFERENCE ASSETS */}
               <div className="space-y-4">
-                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-500 border-b border-zinc-800 pb-2">
+                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-400 border-b border-zinc-800 pb-2">
                   05. Reference Files / Attachments
                 </h3>
 
@@ -742,7 +742,7 @@ export default function DesignBookingFormPage() {
 
               {/* SECTION 6: PRICING & PAYMENT */}
               <div className="space-y-3 bg-zinc-950/60 p-4 rounded-xl border-2 border-black">
-                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-500 border-b border-zinc-800 pb-2">
+                <h3 className="text-sm md:text-base font-mono font-black uppercase tracking-wider text-blue-400 border-b border-zinc-800 pb-2">
                   06. Pricing Breakdown
                 </h3>
 

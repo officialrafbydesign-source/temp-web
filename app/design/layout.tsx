@@ -5,7 +5,7 @@ export default function DesignLayout({
 }) {
   return (
     <section
-      className="min-h-screen w-full text-white"
+      className="min-h-screen w-full text-white overflow-x-clip"
       style={{
         backgroundImage: "url('/images/WEBSITE BACKGROUND BLUE.jpg')",
         backgroundRepeat: "repeat",
@@ -13,7 +13,7 @@ export default function DesignLayout({
         backgroundSize: "900px auto",
       }}
     >
-      <div className="w-full max-w-7xl mx-auto px-6">
+      <div className="w-full">
         {children}
       </div>
     </section>

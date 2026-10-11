@@ -1,5 +1,7 @@
 "use client";
 
+import PageBanner from "@/components/layout/PageBanner";
+
 import { useState, FormEvent, ChangeEvent } from "react";
 
 interface ProductionBookingFormData {
@@ -255,13 +257,7 @@ export default function BeatsBookingFormPage() {
       }}
     >
       {/* HEADER */}
-      <header className="w-full bg-black/60 backdrop-blur-sm border-b-4 border-black">
-        <div className="max-w-7xl mx-auto px-6 py-10 text-center">
-          <h1 className="font-raf text-3xl md:text-5xl lg:text-6xl tracking-wide uppercase text-white">
-            MUSIC SERVICE BOOKING
-          </h1>
-        </div>
-      </header>
+      <PageBanner title="Music Service Booking" description="Tell us about your music project, choose a service and send your booking request." />
 
       {/* MAIN FORM */}
       <div className="max-w-4xl mx-auto px-4 md:px-6 pt-10">

@@ -38,7 +38,7 @@ export default function RootLayout({
         <CartProvider>
           <Navbar />
 
-          <main className="relative z-10 flex-grow w-full">
+          <main className="relative flex-grow w-full">
             {children}
           </main>
 
