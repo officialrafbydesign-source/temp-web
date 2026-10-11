@@ -91,6 +91,14 @@ export default async function AccountOrdersPage() {
               <LogoutButton />
             </div>
 
+            {user.role === "admin" && user.emailVerifiedAt && (
+              <section className="mt-6 rounded-xl border-2 border-black bg-zinc-100 p-5" aria-labelledby="admin-access-title">
+                <h2 id="admin-access-title" className="text-xl font-black">Admin</h2>
+                <p className="mt-2 text-zinc-700">Manage clothing, beats, music releases, orders and bookings.</p>
+                <Link href="/admin" className="mt-4 inline-flex items-center justify-center rounded-lg border-2 border-black bg-red-600 px-5 py-3 font-black text-white hover:bg-red-700">Open Admin Dashboard</Link>
+              </section>
+            )}
+
             {orders.length === 0 ? (
               <div className="py-12 text-center">
                 <h2 className="text-2xl font-black">

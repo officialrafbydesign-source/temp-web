@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AdminLayout from "../components/AdminLayout";
+import { duplicateTracks } from "@/lib/catalogueDuplication";
 
 type Track = {
   id?: string;
@@ -37,6 +38,7 @@ export default function MusicManagementPage() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const [copyingTitle, setCopyingTitle] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
@@ -148,6 +150,7 @@ export default function MusicManagementPage() {
 
   function resetForm() {
     setEditingId(null);
+    setCopyingTitle(null);
     setTitle("");
     setArtist("");
     setPrice("");
@@ -201,6 +204,7 @@ export default function MusicManagementPage() {
     const release = product.release;
 
     setEditingId(product.id);
+    setCopyingTitle(null);
     setTitle(release?.title || "");
     setArtist(release?.artist?.name || "");
     setPrice(String(product.price ?? ""));
@@ -231,13 +235,25 @@ export default function MusicManagementPage() {
             audioUrl: song.audioUrl || "",
             fileUrl: song.fileUrl || "",
             isrc: song.isrc || "",
-            price: song.price ? String(song.price) : "0.99",
+            price: song.price !== null && song.price !== undefined ? String(song.price) : "0.99",
             sellIndividually: Boolean(song.sellIndividually),
           }))
         : [emptyTrack(1)];
 
     setTracks(mappedTracks);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleDuplicate(product: any) {
+    handleEdit(product);
+    setEditingId(null);
+    setCopyingTitle(product.release?.title || "Untitled");
+    setTitle(`${product.release?.title || "Untitled"} (copy)`);
+    setStock(product.itemType === "PHYSICAL" ? "0" : "");
+    setUpc("");
+    setCatalogNo("");
+    setTracks((current) => duplicateTracks(current));
+    setMessage("Release copied into the form with its tracks. Review the title, files, UPC, catalogue number and stock before saving.");
   }
 
   function canFeatureRelease(product: any) {
@@ -428,7 +444,7 @@ export default function MusicManagementPage() {
         <form onSubmit={handleSubmit} className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="border-b border-zinc-100 bg-zinc-50/70 px-6 py-4 flex items-center justify-between">
             <h2 className="text-lg font-bold text-zinc-800">
-              {editingId ? "⚡ Edit Target Release" : "✨ Create New Release"}
+              {editingId ? "⚡ Edit Target Release" : copyingTitle ? "Duplicate Release" : "✨ Create New Release"}
             </h2>
             {editingId && (
               <span className="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide">
@@ -608,9 +624,9 @@ export default function MusicManagementPage() {
               {submitting ? "Processing Asset Storage..." : editingId ? "Save Catalog Mutations" : "Publish to Global Inventory"}
             </button>
 
-            {editingId && (
+            {(editingId || copyingTitle) && (
               <button type="button" onClick={resetForm} className="bg-zinc-200 text-zinc-700 font-bold px-6 py-3 rounded-xl hover:bg-zinc-300 transition-all text-sm">
-                Discard Changes
+                {copyingTitle ? "Cancel Copy" : "Discard Changes"}
               </button>
             )}
           </div>
@@ -753,10 +769,11 @@ export default function MusicManagementPage() {
                           </span>
                         </td>
                         <td className="p-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
                             <button onClick={() => handleEdit(p)} className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold rounded-lg text-xs transition-colors">
                               Edit
                             </button>
+                            <button type="button" disabled={submitting} onClick={() => handleDuplicate(p)} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold rounded-lg text-xs disabled:opacity-50">Duplicate</button>
                             <button onClick={() => handleDelete(p.id)} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-semibold rounded-lg text-xs transition-colors">
                               Delete
                             </button>
@@ -829,6 +846,7 @@ export default function MusicManagementPage() {
                     <button onClick={() => handleEdit(p)} className="flex-1 bg-white border border-zinc-200 text-zinc-800 font-semibold py-2 rounded-lg text-xs hover:bg-zinc-100 transition-all shadow-sm">
                       Edit Data
                     </button>
+                    <button type="button" disabled={submitting} onClick={() => handleDuplicate(p)} className="flex-1 bg-emerald-50 border border-emerald-100 text-emerald-700 font-semibold py-2 rounded-lg text-xs hover:bg-emerald-100 disabled:opacity-50">Duplicate</button>
                     <button onClick={() => handleDelete(p.id)} className="bg-red-50 text-red-600 border border-red-100 font-semibold px-3 py-2 rounded-lg text-xs hover:bg-red-100 transition-all">
                       Delete
                     </button>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { authorizeAdminApi } from "@/lib/adminApi";
 
 const ALLOWED_RANGES = new Set([
   "originals",
@@ -69,6 +70,9 @@ function normaliseRange(value: any): string | null {
 }
 
 export async function GET() {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.authorized) return authorization.response;
+
   try {
     const products = await prisma.product.findMany({
       include: {
@@ -91,6 +95,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.authorized) return authorization.response;
+
   try {
     const {
       name,
@@ -162,6 +169,9 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.authorized) return authorization.response;
+
   try {
     const {
       id,
@@ -253,6 +263,9 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.authorized) return authorization.response;
+
   try {
     const { searchParams } = new URL(req.url);
 

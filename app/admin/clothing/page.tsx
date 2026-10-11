@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminLayout from "../components/AdminLayout";
+import { copyColourVariants, duplicateVariant, hasDuplicateVariants } from "@/lib/catalogueDuplication";
 
 type Variant = {
   size: string;
@@ -80,6 +81,10 @@ export default function ProductsAdminPage() {
 
   const [editingId, setEditingId] =
     useState<string | null>(null);
+
+  const [copyingName, setCopyingName] = useState<string | null>(null);
+  const [sourceColour, setSourceColour] = useState("");
+  const [targetColour, setTargetColour] = useState("");
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -204,6 +209,9 @@ export default function ProductsAdminPage() {
 
   function resetForm() {
     setEditingId(null);
+    setCopyingName(null);
+    setSourceColour("");
+    setTargetColour("");
 
     setName("");
     setBrand("HipHop100");
@@ -290,6 +298,40 @@ export default function ProductsAdminPage() {
     ]);
   }
 
+  function handleDuplicateVariant(index: number) {
+    setVariants((current) => [...current, duplicateVariant(current[index])]);
+    setMessage("Variant copied. Change its size or colour before saving; enter its stock and SKU.");
+  }
+
+  function handleCopyColour() {
+    if (!targetColour.trim()) {
+      setMessage("Enter the new colour before copying its sizes.");
+      return;
+    }
+    const copies = copyColourVariants(variants, selectedSourceColour, targetColour);
+    if (!copies.length) {
+      setMessage("No new sizes to copy. Choose a different colour or add a source size first.");
+      return;
+    }
+    setVariants((current) => [...current, ...copies]);
+    setTargetColour("");
+    setMessage(`${copies.length} size(s) copied to ${targetColour.trim()}. Enter stock and SKUs, then save.`);
+  }
+
+  function handleDuplicate(product: Product) {
+    handleEdit(product);
+    setEditingId(null);
+    setCopyingName(product.name);
+    setName(`${product.name} (copy)`);
+    setSku("");
+    setVariants(product.variants.length
+      ? product.variants.map((variant) => duplicateVariant({
+          size: variant.size, color: variant.color, stock: String(variant.stock), sku: variant.sku || "",
+        }))
+      : [emptyVariant()]);
+    setMessage("Clothing copied into the form. Review the details and stock, then save the new item.");
+  }
+
   function removeVariant(index: number) {
     setVariants((prev) =>
       prev.filter((_, i) => i !== index)
@@ -298,6 +340,9 @@ export default function ProductsAdminPage() {
 
   function handleEdit(product: Product) {
     setEditingId(product.id);
+    setCopyingName(null);
+    setSourceColour("");
+    setTargetColour("");
 
     setName(product.name || "");
 
@@ -395,6 +440,11 @@ export default function ProductsAdminPage() {
   ) {
     e.preventDefault();
 
+    if (hasDuplicateVariants(variants)) {
+      setMessage("Each size and colour combination must be unique. Edit or remove the repeated variant before saving.");
+      return;
+    }
+
     setSubmitting(true);
     setMessage("");
 
@@ -478,6 +528,10 @@ export default function ProductsAdminPage() {
     }
   }
 
+  const variantColours = Array.from(new Set(variants.map((variant) => variant.color.trim())));
+  const selectedSourceColour = variantColours.includes(sourceColour)
+    ? sourceColour : variantColours[0] || "";
+
   const imageList = imageUrls
     .split(",")
     .map((url) => url.trim())
@@ -504,7 +558,7 @@ export default function ProductsAdminPage() {
           <h2 className="md:col-span-2 text-xl font-bold">
             {editingId
               ? "Edit Clothing Item"
-              : "Add Clothing Item"}
+              : copyingName ? "Duplicate Clothing Item" : "Add Clothing Item"}
           </h2>
 
           <input
@@ -718,6 +772,21 @@ export default function ProductsAdminPage() {
               Variants / Stock
             </h2>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded border border-zinc-200 bg-zinc-50 p-3">
+              <label className="text-sm font-semibold">
+                Copy sizes from colour
+                <select aria-label="Copy sizes from colour" value={selectedSourceColour} onChange={(e) => setSourceColour(e.target.value)} className="mt-1 w-full border p-2 rounded bg-white">
+                  {variantColours.map((colour) => <option key={colour} value={colour}>{colour || "No colour set"}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-semibold">
+                New colour
+                <input aria-label="New colour" value={targetColour} onChange={(e) => setTargetColour(e.target.value)} placeholder="e.g. Navy" className="mt-1 w-full border p-2 rounded" />
+              </label>
+              <button type="button" disabled={submitting} onClick={handleCopyColour} className="self-end bg-blue-600 text-white px-3 py-2 rounded disabled:opacity-50">Copy sizes to colour</button>
+              <p className="sm:col-span-3 text-sm text-zinc-600">Copies start with zero stock and blank SKUs. Sizes already present in the new colour are skipped.</p>
+            </div>
+
             {variants.map(
               (variant, index) => (
                 <div
@@ -782,6 +851,8 @@ export default function ProductsAdminPage() {
                     }
                   />
 
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" disabled={submitting} onClick={() => handleDuplicateVariant(index)} className="bg-blue-600 text-white px-3 py-2 rounded disabled:opacity-50">Duplicate</button>
                   <button
                     type="button"
                     onClick={() =>
@@ -793,6 +864,7 @@ export default function ProductsAdminPage() {
                   >
                     Remove
                   </button>
+                  </div>
                 </div>
               )
             )}
@@ -818,13 +890,13 @@ export default function ProductsAdminPage() {
               : "Save Clothing"}
           </button>
 
-          {editingId && (
+          {(editingId || copyingName) && (
             <button
               type="button"
               onClick={resetForm}
               className="md:col-span-2 bg-zinc-600 text-white py-2 rounded hover:bg-zinc-700"
             >
-              Cancel Edit
+              {copyingName ? "Cancel Copy" : "Cancel Edit"}
             </button>
           )}
         </form>
@@ -1074,7 +1146,7 @@ export default function ProductsAdminPage() {
                           </td>
 
                           <td className="p-3">
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <button
                                 onClick={() =>
                                   handleEdit(
@@ -1085,6 +1157,7 @@ export default function ProductsAdminPage() {
                               >
                                 Edit
                               </button>
+                              <button type="button" disabled={submitting} onClick={() => handleDuplicate(product)} className="bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 disabled:opacity-50">Duplicate</button>
 
                               <button
                                 onClick={() =>
@@ -1236,7 +1309,7 @@ export default function ProductsAdminPage() {
                           )}
                         </div>
 
-                        <div className="flex gap-2 pt-3">
+                        <div className="flex flex-wrap gap-2 pt-3">
                           <button
                             onClick={() =>
                               handleEdit(
@@ -1247,6 +1320,7 @@ export default function ProductsAdminPage() {
                           >
                             Edit
                           </button>
+                          <button type="button" disabled={submitting} onClick={() => handleDuplicate(product)} className="bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 disabled:opacity-50">Duplicate</button>
 
                           <button
                             onClick={() =>

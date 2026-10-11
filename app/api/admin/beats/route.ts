@@ -146,6 +146,8 @@ export async function GET() {
               beat.backgroundImage ||
               "",
 
+            backgroundUrl: beat.backgroundImage || "",
+
             plays: 0,
 
             downloads:
@@ -205,6 +207,20 @@ export async function POST(
     const body =
       await req.json();
 
+    if (body.duplicateSourceId != null && typeof body.duplicateSourceId !== "string") {
+      return NextResponse.json({ error: "Invalid source beat id" }, { status: 400 });
+    }
+    const source = body.duplicateSourceId
+      ? await prisma.beat.findUnique({
+          where: { id: body.duplicateSourceId },
+          include: { licenses: true },
+        })
+      : null;
+
+    if (body.duplicateSourceId && !source) {
+      return NextResponse.json({ error: "The source beat no longer exists. Cancel the copy and reload the catalogue." }, { status: 404 });
+    }
+
     const standardFileUrl =
       cleanOptionalUrl(
         body.standardFileUrl
@@ -216,11 +232,39 @@ export async function POST(
           body.fileUrl
       );
 
+    const standardPrice = Math.round(Number(body.priceStandard ?? 29.99) * 100);
+    const premiumPrice = Math.round(Number(body.pricePremium ?? 79.99) * 100);
+    if (!Number.isFinite(standardPrice) || standardPrice < 0 ||
+        !Number.isFinite(premiumPrice) || premiumPrice < 0) {
+      return NextResponse.json({ error: "Enter valid non-negative licence prices." }, { status: 400 });
+    }
+
+    const standardSource = source?.licenses.find((license) => license.name.toLowerCase().includes("standard"));
+    const premiumSource = source?.licenses.find((license) => /premium|exclusive/.test(license.name.toLowerCase()));
+    // Recreate licence rows with new IDs, keeping any additional licence types.
+    const licenses = source?.licenses.length
+      ? source.licenses.map((license) => ({
+          name: license.name,
+          price: license.id === standardSource?.id ? standardPrice
+            : license.id === premiumSource?.id ? premiumPrice : license.price,
+          fileUrl: license.id === standardSource?.id ? standardFileUrl
+            : license.id === premiumSource?.id ? premiumFileUrl : license.fileUrl,
+        }))
+      : [
+          { name: "Standard Lease", price: standardPrice, fileUrl: standardFileUrl },
+          { name: "Premium Lease", price: premiumPrice, fileUrl: premiumFileUrl },
+        ];
+
     const newBeat =
       await prisma.beat.create({
         data: {
           title:
             body.title,
+
+          description: source?.description ?? null,
+          youtubeUrl: source?.youtubeUrl ?? null,
+          // Copying must not put an unavailable/exclusively sold recording back on sale.
+          isAvailable: source ? source.isAvailable && !source.exclusiveSoldAt : true,
 
           bpm:
             body.bpm
@@ -262,47 +306,14 @@ export async function POST(
 
           mascotImage:
             body.mascotImage ||
+            source?.mascotImage ||
             null,
 
           backgroundImage:
-            body.backgroundImage ||
-            null,
+            cleanOptionalUrl(body.backgroundImage ?? body.backgroundUrl ?? source?.backgroundImage),
 
           licenses: {
-            create: [
-              {
-                name:
-                  "Standard Lease",
-
-                price:
-                  Math.round(
-                    (Number(
-                      body.priceStandard
-                    ) ||
-                      29.99) *
-                      100
-                  ),
-
-                fileUrl:
-                  standardFileUrl,
-              },
-              {
-                name:
-                  "Premium Lease",
-
-                price:
-                  Math.round(
-                    (Number(
-                      body.pricePremium
-                    ) ||
-                      79.99) *
-                      100
-                  ),
-
-                fileUrl:
-                  premiumFileUrl,
-              },
-            ],
+            create: licenses,
           },
         },
 
@@ -403,6 +414,8 @@ export async function POST(
       backgroundImage:
         newBeat.backgroundImage ||
         "",
+
+      backgroundUrl: newBeat.backgroundImage || "",
 
       plays: 0,
       downloads: 0,

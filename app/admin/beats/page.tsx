@@ -161,6 +161,7 @@ export default function AdminBeatsPage() {
      SINGLE TRACK FORM
   ========================================================= */
 
+  const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [bpm, setBpm] = useState("");
   const [genre, setGenre] = useState("");
@@ -668,6 +669,42 @@ export default function AdminBeatsPage() {
      SINGLE TRACK SUBMIT
   ========================================================= */
 
+  function handleDuplicateBeat(beat: BeatTrack) {
+    setDuplicateSourceId(beat.id);
+    setIntakeMode("single");
+    setTitle(`${beat.title} (copy)`);
+    setBpm(String(beat.bpm || ""));
+    setGenre(beat.genre || "");
+    setFreeDownload(beat.freeDownload);
+    setMusicalKey(beat.musicalKey || "");
+    setTags((beat.tags || []).join(", "));
+    setPriceStd(String(beat.priceStandard));
+    setPricePrem(String(beat.pricePremium));
+    setMp3Url(beat.mp3Url || "");
+    setZipUrl(beat.zipUrl || "");
+    setStandardFileUrl(beat.standardFileUrl || "");
+    setArtworkUrl(beat.artworkUrl || "");
+    setBackgroundUrl(beat.backgroundUrl || "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelBeatCopy() {
+    setDuplicateSourceId(null);
+    setTitle("");
+    setBpm("");
+    setGenre("");
+    setFreeDownload(false);
+    setMusicalKey("");
+    setTags("");
+    setPriceStd("29.99");
+    setPricePrem("79.99");
+    setMp3Url("");
+    setZipUrl("");
+    setStandardFileUrl("");
+    setArtworkUrl("");
+    setBackgroundUrl("");
+  }
+
   const handleUploadSubmit = async (
     e: FormEvent
   ) => {
@@ -676,6 +713,7 @@ export default function AdminBeatsPage() {
     setIsSubmitting(true);
 
     const payload = {
+      duplicateSourceId,
       title,
 
       bpm: bpm
@@ -754,6 +792,7 @@ export default function AdminBeatsPage() {
         updatedCatalog
       );
 
+      setDuplicateSourceId(null);
       setTitle("");
       setBpm("");
       setGenre("");
@@ -1295,6 +1334,12 @@ export default function AdminBeatsPage() {
               }
               className="space-y-5"
             >
+              {duplicateSourceId && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900" role="status">
+                  <p>Duplicate beat: review the title, audio, download files and prices, then save the new beat.</p>
+                  <button type="button" disabled={isSubmitting} onClick={cancelBeatCopy} className="mt-2 font-bold underline disabled:opacity-50">Cancel Copy</button>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <input
                   type="text"
@@ -2014,6 +2059,7 @@ export default function AdminBeatsPage() {
                   <th className="p-3">
                     Card Assets / Downloads
                   </th>
+                  <th className="p-3">Actions</th>
                 </tr>
               </thead>
 
@@ -2021,7 +2067,7 @@ export default function AdminBeatsPage() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={12}
+                      colSpan={13}
                       className="p-8 text-center text-zinc-400"
                     >
                       Loading
@@ -2032,7 +2078,7 @@ export default function AdminBeatsPage() {
                   0 ? (
                   <tr>
                     <td
-                      colSpan={12}
+                      colSpan={13}
                       className="p-8 text-center text-zinc-400"
                     >
                       No beats found.
@@ -2441,6 +2487,9 @@ export default function AdminBeatsPage() {
                                   </button>
                                 )}
                             </div>
+                          </td>
+                          <td className="p-3 align-top">
+                            <button type="button" disabled={isSubmitting} onClick={() => handleDuplicateBeat(beat)} className="rounded bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50">Duplicate</button>
                           </td>
                         </tr>
                       );
