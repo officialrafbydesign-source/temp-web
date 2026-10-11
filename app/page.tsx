@@ -137,10 +137,7 @@ export default function Home() {
   ];
 
   return (
-    <main className="home-compact min-h-screen text-white overflow-hidden pb-24 pt-24 relative" style={{
-      backgroundImage: "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.75)), url('https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068305/WEBSITE_BACKGROUND_RED_uipmtc.jpg')",
-      backgroundAttachment: "scroll", backgroundPosition: "center top", backgroundSize: "cover",
-    }}>
+    <main className="home-compact min-h-screen text-white overflow-hidden pb-24 pt-24 relative">
       <style>{compactHomepageCss}</style>
       <header className="w-full bg-black/60 border-b-4 border-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 text-center">

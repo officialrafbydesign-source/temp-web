@@ -63,19 +63,19 @@ export default function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 w-full z-50 border-b-4 border-black shadow-md backdrop-blur-md bg-black/90">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 h-24 flex items-center justify-between relative">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 xl:px-6 h-24 flex items-center justify-between relative">
         {/* LEFT SIDE: Mascot */}
         <div className="flex items-center shrink-0 z-20">
           <Link href="/" onClick={() => setMobileOpen(false)}>
             <img
               src="/images/mascot.png"
               alt="RAF Mascot"
-              className="h-10 sm:h-12 md:h-16 w-auto object-contain transition hover:scale-105"
+              className="h-8 sm:h-12 xl:h-16 w-auto object-contain transition hover:scale-105"
             />
           </Link>
 
           {/* Desktop Search */}
-          <div className="relative hidden md:flex items-center ml-4">
+          <div className="relative hidden xl:flex items-center ml-4">
             {searchOpen ? (
               <form
                 onSubmit={handleSearchSubmit}
@@ -118,13 +118,13 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* CENTER: RAF / HIPHOP100 Logo */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shrink-0 z-10">
+        {/* RAF / HIPHOP100 logo keeps its own space in the header row. */}
+        <div className="flex items-center justify-center mx-2 shrink-0 z-10 xl:ml-6 xl:mr-auto">
           {isHipHop100 ? (
             <Link
               href="/clothing/hiphop100"
               onClick={() => setMobileOpen(false)}
-              className="block relative w-24 h-14 sm:w-28 sm:h-16 bg-black border-2 border-white/10 rounded-md transition hover:scale-105"
+              className="block relative w-16 h-14 sm:w-28 sm:h-16 bg-black border-2 border-white/10 rounded-md transition hover:scale-105"
             >
               <img
                 src={HIPHOP100_LOGO_URL}
@@ -136,14 +136,14 @@ export default function Navbar() {
             <Link
               href="/"
               onClick={() => setMobileOpen(false)}
-              className="block relative w-20 h-14 sm:w-20 sm:h-16 md:w-16 md:h-16 bg-black border-2 border-white/10 rounded-md transition hover:scale-105"
+              className="block relative w-14 h-14 sm:w-20 sm:h-16 xl:w-16 xl:h-16 bg-black border-2 border-white/10 rounded-md transition hover:scale-105"
             >
               <Image
                 src="/images/logo.png"
                 alt="Main RAF Logo"
                 fill
                 priority
-                sizes="(max-width: 767px) 80px, 64px"
+                sizes="(max-width: 639px) 56px, (max-width: 1279px) 80px, 64px"
                 className="object-contain p-1"
               />
             </Link>
@@ -151,7 +151,7 @@ export default function Navbar() {
         </div>
 
         {/* MOBILE CONTROLS */}
-        <div className="flex md:hidden items-center gap-1 z-20">
+        <div className="flex xl:hidden items-center gap-1 z-20">
           <button
             type="button"
             onClick={() => {
@@ -209,7 +209,7 @@ export default function Navbar() {
         </div>
 
         {/* DESKTOP NAVIGATION */}
-        <div className="hidden md:flex items-center gap-6 z-10">
+        <div className="hidden xl:flex items-center gap-6 z-10">
           {/* BEATS DROPDOWN */}
           <div className="relative group">
             <Link
@@ -345,7 +345,7 @@ export default function Navbar() {
 
         {/* MOBILE SEARCH PANEL */}
         {searchOpen && (
-          <div className="md:hidden absolute left-0 right-0 top-full border-t-2 border-black bg-black/95 p-3 shadow-lg">
+          <div className="xl:hidden absolute left-0 right-0 top-full border-t-2 border-black bg-black/95 p-3 shadow-lg">
             <form onSubmit={handleSearchSubmit} className="flex items-center w-full">
               <input
                 type="text"
@@ -377,7 +377,7 @@ export default function Navbar() {
 
         {/* MOBILE NAVIGATION MENU */}
         {mobileOpen && (
-          <div className="md:hidden absolute left-0 right-0 top-full max-h-[calc(100vh-6rem)] overflow-y-auto border-t-2 border-black bg-black/95 shadow-xl">
+          <div className="xl:hidden absolute left-0 right-0 top-full max-h-[calc(100vh-6rem)] overflow-y-auto border-t-2 border-black bg-black/95 shadow-xl">
             <div className="p-4 space-y-5">
               <div>
                 <Link
