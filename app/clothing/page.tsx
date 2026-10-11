@@ -662,7 +662,7 @@ function ClothingContent() {
             <div className="grid lg:grid-cols-2 bg-black/85 backdrop-blur-md border-4 border-black rounded-2xl overflow-hidden shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
               <div className="min-h-[250px] lg:min-h-[310px] relative">
                 <SafeImage
-                  src="https://res.cloudinary.com/dcrkpsnn9/image/upload/v1786550922/_KEEPIT100_RANGE_BANNER_CLOTHING_SHOP_r1sgvf.png"
+                  src="https://res.cloudinary.com/dcrkpsnn9/image/upload/v1791740242/HIPHOP100_BANNER_LOGO_ONLY_qgqmlr.png"
                   alt="HipHop100"
                   className="transition-transform duration-500 hover:scale-105"
                 />

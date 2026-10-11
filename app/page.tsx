@@ -1,249 +1,57 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { sanitizeCloudinaryUrl } from "@/lib/utils";
-import CategoryCarousel from "@/components/home/CategoryCarousel";
-import ProductCarousel from "@/components/home/ProductCarousel";
 import NewsletterModal from "@/components/home/NewsletterModal";
-import FadeIn from "@/components/FadeIn";
+import CompactHomeSection, { compactHomepageCss, type HomeTile } from "@/components/home/CompactHomeSection";
 
-// ========================================================
-// SAFE IMAGE COMPONENT
-// ========================================================
-function SafeImage({ src, alt, ...props }: any) {
-  const [error, setError] = useState(false);
-
-  if (error || !src) {
-    return (
-      <div className="w-full h-full bg-gradient-to-br from-zinc-900 to-zinc-950 flex flex-col items-center justify-center p-4 text-center border-b-4 border-black">
-        <span className="text-white text-sm font-black uppercase tracking-widest mb-1">
-          Image Unavailable
-        </span>
-        <p className="text-sm text-zinc-400 line-clamp-2 px-2">{alt}</p>
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={src}
-      alt={alt}
-      {...props}
-      onError={() => setError(true)}
-      className={`${props.className || ""} object-cover w-full h-full`}
-      loading="lazy"
-      decoding="async"
-    />
-  );
-}
-
-// Inline Localized Slider Component
-function LocalAboutCarousel() {
-  const slides = [
-    {
-      image:
-        "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1788022016/WHATWEOFFER_oqbyvq.png",
-      alt: "What We Offer",
-      href: "/what-we-offer",
-    },
-    {
-      image:
-        "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1788022020/About_Us_oyekxq.png",
-      alt: "How It Works",
-      href: "/how-it-works",
-    },
-    {
-      image:
-        "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1788022025/All_About_RAF_lfb43o.png",
-      alt: "All About RAF",
-      href: "/all-about-raf",
-    },
-    {
-      image:
-        "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1788022211/Showcase_i2x3me.png",
-      alt: "Showcase",
-      href: "/showcase",
-    },
-  ];
-
-  const [current, setCurrent] = useState(0);
-
-  const prev = () =>
-    setCurrent((curr) => (curr === 0 ? slides.length - 1 : curr - 1));
-
-  const next = () =>
-    setCurrent((curr) => (curr === slides.length - 1 ? 0 : curr + 1));
-
-  const slide = slides[current];
-
-  return (
-    <div className="w-full relative group aspect-[16/6] overflow-hidden rounded-xl border-4 border-black bg-zinc-950">
-      <Link
-        href={slide.href}
-        className="absolute inset-0 block"
-        aria-label={`Open ${slide.alt}`}
-      >
-        <SafeImage src={slide.image} alt={slide.alt} />
-        <div className="absolute inset-0 bg-black/0 transition group-hover:bg-black/10" />
-      </Link>
-
-      <button
-        type="button"
-        onClick={prev}
-        aria-label="Previous All About RAF slide"
-        className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-black bg-black/80 flex items-center justify-center text-white hover:bg-red-600 transition text-lg font-black z-10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-      >
-        &lt;
-      </button>
-
-      <button
-        type="button"
-        onClick={next}
-        aria-label="Next All About RAF slide"
-        className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-black bg-black/80 flex items-center justify-center text-white hover:bg-red-600 transition text-lg font-black z-10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-      >
-        &gt;
-      </button>
-
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-        {slides.map((item, i) => (
-          <button
-            key={item.href}
-            type="button"
-            onClick={() => setCurrent(i)}
-            aria-label={`Show ${item.alt}`}
-            className={`h-2 rounded-full border border-black transition-all ${
-              current === i ? "w-7 bg-red-500" : "w-2 bg-white"
-            }`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-
-function SocialPlatformCarousel({
-  title,
-  channelUrl,
-  channelHandle,
-  posts,
-  loading,
-}: {
-  title: string;
-  channelUrl: string;
-  channelHandle: string;
-  posts: SocialPost[];
-  loading: boolean;
-}) {
-  const [current, setCurrent] = useState(0);
-  const [imageFailed, setImageFailed] = useState(false);
-  const currentIndex = Math.min(current, Math.max(posts.length - 1, 0));
-  const post = posts[currentIndex];
-  const latestId = posts[0]?.id;
-
-  useEffect(() => { setCurrent(0); }, [latestId]);
-  useEffect(() => { setImageFailed(false); }, [post?.id, post?.imageUrl]);
-
-  // All thumbnails come from our server; no social widgets are injected here.
-  const imageUrl = post?.imageUrl?.startsWith("/api/social/thumbnail?")
-    ? post.imageUrl : undefined;
-
-  return (
-    <section
-      aria-label={`${title} latest posts`}
-      aria-busy={loading}
-      className="min-w-0 snap-start overflow-hidden rounded-xl border-2 border-black bg-zinc-950 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
-    >
-      <div className="flex items-center justify-between gap-2 border-b-2 border-black bg-black px-3 py-2.5">
-        <a href={channelUrl} target="_blank" rel="noopener noreferrer" className="min-w-0">
-          <h3 className="font-raf text-xl uppercase leading-none text-red-500 transition hover:text-red-400">
-            {title}
-          </h3>
-        </a>
-        <div className="flex shrink-0 gap-1">
-          <button
-            type="button"
-            onClick={() => setCurrent((currentIndex + posts.length - 1) % posts.length)}
-            disabled={posts.length < 2}
-            aria-label={`Previous ${title} post`}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600 bg-black text-sm font-black text-white transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 disabled:cursor-default disabled:opacity-30"
-          >
-            &lt;
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrent((currentIndex + 1) % posts.length)}
-            disabled={posts.length < 2}
-            aria-label={`Next ${title} post`}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600 bg-black text-sm font-black text-white transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 disabled:cursor-default disabled:opacity-30"
-          >
-            &gt;
-          </button>
-        </div>
-      </div>
-
-      <a
-        href={post?.url || channelUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500"
-        aria-label={post ? `View ${title} post: ${post.headline || post.content || "Latest post"}` : `Open ${title} channel`}
-      >
-        <div className="relative flex h-28 items-center justify-center overflow-hidden border-b-2 border-black bg-gradient-to-br from-zinc-900 to-black sm:h-32">
-          {imageUrl && !imageFailed ? (
-            <img
-              src={imageUrl}
-              alt={post.headline || post.content || `${title} post`}
-              loading="lazy"
-              decoding="async"
-              onError={() => setImageFailed(true)}
-              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-            />
-          ) : (
-            <span className={`font-raf text-2xl uppercase text-white/30 ${loading ? "animate-pulse" : ""}`}>
-              {loading ? "Loading…" : title}
-            </span>
-          )}
-        </div>
-        <div className="px-3 py-3">
-          <p className="truncate text-xs text-zinc-400">{post?.handle || channelHandle}</p>
-          <h4 className="mt-1.5 line-clamp-2 h-10 text-sm font-bold leading-5 text-white">
-            {post?.headline || post?.content || (loading ? "Finding the latest posts…" : `See the latest on ${title}`)}
-          </h4>
-          <div className="mt-2 flex items-center justify-between gap-2 text-xs text-zinc-400">
-            <span>{post?.timestamp || post?.date || (loading ? "" : "Open channel →")}</span>
-            {post && (
-              <span className="shrink-0 text-white transition group-hover:text-red-400">
-                {posts.length > 1 ? `${currentIndex + 1} / ${posts.length} · ` : ""}View →
-              </span>
-            )}
-          </div>
-        </div>
-      </a>
-    </section>
-  );
-}
-
-
-type Beat = { id: string; title: string; genre?: string; bpm?: number; artworkUrl?: string; };
-type MusicRelease = { id: string; releaseId: string; title: string; artist: string; coverUrl?: string; };
-type ClothingProduct = { id: string; name: string; price: number; imageUrl?: string; imageUrls?: string[]; };
+type Beat = { id: string; title: string; genre?: string; bpm?: number; artworkUrl?: string };
+type MusicRelease = { id: string; releaseId: string; title: string; artist: string; coverUrl?: string };
+type ClothingProduct = { id: string; name: string; price: number; imageUrl?: string; imageUrls?: string[] };
 type SocialPost = {
-  id: string;
-  platform: string;
-  channelHandle?: string;
-  handle?: string;
-  headline?: string;
-  content?: string;
-  url: string;
-  timestamp?: string;
-  date?: string;
-  imageUrl?: string;
-  mediaType?: string;
-  publishedAt?: string;
+  id: string; platform: string; handle?: string; channelHandle?: string;
+  headline?: string; content?: string; url: string; imageUrl?: string;
+  timestamp?: string; date?: string; publishedAt?: string;
 };
+
+const categories: HomeTile[] = [
+  { id: "explore-beats", title: "Beats", subtitle: "Beats, licences and production", href: "/beats", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1785162687/HOMEPAGE_BEATS_BUTTON_sxnwgt.png", insetImage: true },
+  { id: "explore-music", title: "Music", subtitle: "Albums, singles and releases", href: "/music", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1785162688/HOMEPAGE_MUSIC_BUTTON_o3jqp9.png", insetImage: true },
+  { id: "explore-clothing", title: "Clothing", subtitle: "HipHop100 clothing and merchandise", href: "/clothing", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1785162687/HOMEPAGE_CLOTHING_BUTTON_azz2xr.png", insetImage: true },
+  { id: "explore-design", title: "Design", subtitle: "Artwork, branding and graphics", href: "/design", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1785162687/HOMEPAGE_DESIGN_BUTTON_g0jrnp.png", insetImage: true },
+];
+
+const services: HomeTile[] = [
+  { id: "music-services", title: "Music Services", subtitle: "Production · Recording · Mixing · Mastering", href: "/beats/services", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784140412/Music_Services_Image_hadkro.png", insetImage: true },
+  { id: "design-services", title: "Design Services", subtitle: "Branding · Artwork · Print · Digital Design", href: "/design/services", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068279/Design_Services_Image_jeaxt6.jpg", insetImage: true },
+];
+
+const about: HomeTile[] = [
+  { id: "what-we-offer", title: "What We Offer", subtitle: "Our services and products", href: "/what-we-offer", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1788022016/WHATWEOFFER_oqbyvq.png", insetImage: true },
+  { id: "how-it-works", title: "How It Works", subtitle: "Working with RAF By Design", href: "/how-it-works", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1788022020/About_Us_oyekxq.png", insetImage: true },
+  { id: "all-about-raf", title: "All About RAF", subtitle: "The story behind the business", href: "/all-about-raf", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1788022025/All_About_RAF_lfb43o.png", insetImage: true },
+  { id: "showcase", title: "Showcase", subtitle: "Selected work and projects", href: "/showcase", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1788022211/Showcase_i2x3me.png", insetImage: true },
+];
+
+function latestPost(posts: SocialPost[], platform: string) {
+  const publishedTime = (post: SocialPost) => Date.parse(post.publishedAt || "") || 0;
+  return posts.filter((post) => post.platform.toUpperCase() === platform)
+    .sort((a, b) => publishedTime(b) - publishedTime(a))[0];
+}
+
+function socialCard(title: string, post: SocialPost | undefined, channelUrl: string, channelHandle: string, loading: boolean): HomeTile {
+  return {
+    id: `latest-${title.toLowerCase()}`,
+    tag: title,
+    title: post?.headline || post?.content || (loading ? "Finding the latest post…" : `See the latest on ${title}`),
+    subtitle: post?.handle || post?.channelHandle || channelHandle,
+    href: post?.url || channelUrl,
+    // Preserve the server thumbnail proxy and avoid injecting platform widgets.
+    image: post?.imageUrl?.startsWith("/api/social/thumbnail?") ? post.imageUrl : undefined,
+    meta: post ? `${post.timestamp || post.date || "Latest post"} · View →` : loading ? "Loading…" : "Open profile →",
+    external: true,
+  };
+}
 
 export default function Home() {
   const [beats, setBeats] = useState<Beat[]>([]);
@@ -251,6 +59,7 @@ export default function Home() {
   const [clothing, setClothing] = useState<ClothingProduct[]>([]);
   const [socialFeed, setSocialFeed] = useState<SocialPost[]>([]);
   const [socialLoading, setSocialLoading] = useState(true);
+  const [catalogueLoading, setCatalogueLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -312,366 +121,52 @@ export default function Home() {
         if (clothingRes.ok) setClothing((await clothingRes.json()).slice?.(0, 8) || []);
       } catch (err) {
         console.error("Failed to load homepage elements", err);
+      } finally {
+        setCatalogueLoading(false);
       }
     }
 
     loadHomepage();
   }, []);
 
+
+  const socialCards: HomeTile[] = [
+    socialCard("YouTube", latestPost(socialFeed, "YOUTUBE"), "https://www.youtube.com/@rafbydesign", "@rafbydesign", socialLoading),
+    socialCard("Instagram", latestPost(socialFeed, "INSTAGRAM"), "https://www.instagram.com/rafbydesign", "@rafbydesign", socialLoading),
+    { id: "tiktok-profile", tag: "TikTok", title: "RAF By Design on TikTok", subtitle: "@rafbydesignmusic", href: "https://www.tiktok.com/@rafbydesignmusic", image: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1791740711/RAF_TIKTOK_griscl.png", insetImage: true, meta: "Open profile →", external: true },
+  ];
+
   return (
-    <main
-      className="home-visual-pass min-h-screen text-white overflow-hidden pb-24 pt-24 relative"
-      style={{
-        backgroundImage: "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.75)), url('https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068305/WEBSITE_BACKGROUND_RED_uipmtc.jpg')",
-        backgroundAttachment: "fixed",
-        backgroundPosition: "center center",
-        backgroundSize: "cover",
-      }}
-    >
-      <style jsx global>{`
-        @font-face {
-          font-family: "RAF Font Demo";
-          src: url("/fonts/RafFontDemo-Regular.otf") format("opentype");
-          font-weight: normal;
-          font-style: normal;
-          font-display: swap;
-        }
-
-        .home-visual-pass {
-          font-family: inherit;
-        }
-
-        .home-visual-pass .font-mono {
-          font-family: inherit !important;
-        }
-
-        .home-visual-pass .font-raf {
-          font-family: "RAF Font Demo", sans-serif;
-        }
-
-        /* Readability rule: avoid tiny supporting text on the homepage. */
-        .home-visual-pass .text-xs {
-          font-size: 0.875rem !important;
-          line-height: 1.25rem !important;
-        }
-
-        .home-visual-pass .text-\\[10px\\],
-        .home-visual-pass .text-\\[9px\\] {
-          font-size: 0.75rem !important;
-          line-height: 1rem !important;
-        }
-
-        /* Explore RAF By Design gets an extra readability lift. */
-        .homepage-category-section .text-xs,
-        .homepage-category-section .text-sm {
-          font-size: 1rem !important;
-          line-height: 1.55rem !important;
-        }
-
-        .homepage-category-section .text-\\[10px\\],
-        .homepage-category-section .text-\\[9px\\] {
-          font-size: 0.875rem !important;
-          line-height: 1.25rem !important;
-        }
-
-        /* Keep Explore RAF supporting copy white and clearly readable. */
-        .homepage-category-section .text-zinc-300,
-        .homepage-category-section .text-zinc-400,
-        .homepage-category-section .text-zinc-500,
-        .homepage-category-section .text-zinc-600 {
-          color: #ffffff !important;
-        }
-
-        /* Keep global header/footer supporting text from dropping below the same readable baseline. */
-        nav .text-xs,
-        footer .text-xs {
-          font-size: 0.875rem !important;
-          line-height: 1.25rem !important;
-        }
-
-        nav .text-\\[10px\\],
-        nav .text-\\[9px\\],
-        footer .text-\\[10px\\],
-        footer .text-\\[9px\\] {
-          font-size: 0.75rem !important;
-          line-height: 1rem !important;
-        }
-
-        /* Mobile homepage pass: smaller cards and lighter background rendering. */
-        @media (max-width: 639px) {
-          .home-visual-pass {
-            background-image:
-              linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.75)),
-              url("https://res.cloudinary.com/dcrkpsnn9/image/upload/f_auto,q_auto:eco,w_900/v1784068305/WEBSITE_BACKGROUND_RED_uipmtc.jpg") !important;
-            background-attachment: scroll !important;
-            background-position: center top !important;
-            background-size: auto 1000px !important;
-          }
-
-          .homepage-product-section [class*="min-w-["],
-          .homepage-category-section [class*="min-w-["] {
-            min-width: 210px !important;
-            width: 210px !important;
-          }
-
-          /* Shorter mobile cards for Explore RAF, Beats and Music Store only. */
-          .homepage-category-section [class*="aspect-"] {
-            aspect-ratio: 2 / 1 !important;
-            max-height: 150px !important;
-          }
-
-          .homepage-beats-section [class*="aspect-"],
-          .homepage-music-section [class*="aspect-"],
-          .homepage-clothing-section [class*="aspect-"] {
-            aspect-ratio: 4 / 3 !important;
-            max-height: 158px !important;
-          }
-
-          .homepage-category-section [class*="p-4"],
-          .homepage-category-section [class*="p-5"],
-          .homepage-category-section [class*="p-6"],
-          .homepage-beats-section [class*="p-4"],
-          .homepage-beats-section [class*="p-5"],
-          .homepage-beats-section [class*="p-6"],
-          .homepage-music-section [class*="p-4"],
-          .homepage-music-section [class*="p-5"],
-          .homepage-music-section [class*="p-6"],
-          .homepage-clothing-section [class*="p-4"],
-          .homepage-clothing-section [class*="p-5"],
-          .homepage-clothing-section [class*="p-6"] {
-            padding-top: 0.65rem !important;
-            padding-bottom: 0.65rem !important;
-          }
-
-          /* Explore RAF: reduce mobile heading and supporting copy. */
-          .homepage-category-section h2,
-          .homepage-category-section h3 {
-            font-size: 1.05rem !important;
-            line-height: 1.25rem !important;
-          }
-
-          .homepage-category-section p,
-          .homepage-category-section .text-sm,
-          .homepage-category-section .text-xs {
-            font-size: 0.72rem !important;
-            line-height: 1rem !important;
-          }
-
-          .homepage-category-section .text-\\[10px\\],
-          .homepage-category-section .text-\\[9px\\] {
-            font-size: 0.64rem !important;
-            line-height: 0.9rem !important;
-          }
-
-          /* Smaller mobile product-link text in Music Store + HipHop100. */
-          .homepage-music-section a .text-xs,
-          .homepage-music-section a.text-xs,
-          .homepage-clothing-section a .text-xs,
-          .homepage-clothing-section a.text-xs {
-            font-size: 0.66rem !important;
-            line-height: 0.9rem !important;
-          }
-        }
-      `}</style>
-      {/* HEADER HERO SECTION */}
-      <header className="w-full bg-black/60 backdrop-blur-sm border-b-4 border-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 text-center">
-          <h1 className="font-raf text-[1.9rem] leading-none sm:text-3xl md:text-5xl lg:text-6xl tracking-wide uppercase text-white">
-            RAF BY DESIGN
-          </h1>
-          <p className="mt-3 mx-auto max-w-[300px] sm:max-w-none whitespace-normal sm:whitespace-nowrap text-[10px] sm:text-xs md:text-sm uppercase tracking-[0.10em] sm:tracking-[0.28em] md:tracking-[0.38em] text-white/80 font-bold">
-            One Stop Shop For All Things Art
-          </p>
+    <main className="home-compact min-h-screen text-white overflow-hidden pb-24 pt-24 relative" style={{
+      backgroundImage: "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.75)), url('https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068305/WEBSITE_BACKGROUND_RED_uipmtc.jpg')",
+      backgroundAttachment: "scroll", backgroundPosition: "center top", backgroundSize: "cover",
+    }}>
+      <style>{compactHomepageCss}</style>
+      <header className="w-full bg-black/60 border-b-4 border-black">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 text-center">
+          <h1 className="font-raf text-[1.9rem] leading-none sm:text-3xl md:text-5xl tracking-wide uppercase text-white">RAF BY DESIGN</h1>
+          <p className="mt-3 mx-auto max-w-[300px] sm:max-w-none text-xs sm:text-sm uppercase tracking-[0.10em] sm:tracking-[0.28em] text-white/80 font-bold">One Stop Shop For All Things Art</p>
         </div>
       </header>
-
-      {/* SCROLLING NEWS TICKER */}
-      <div className="w-full bg-red-600 border-b-4 border-black text-white text-xs uppercase font-black tracking-widest py-2.5 overflow-hidden whitespace-nowrap select-none relative z-10 shadow-md">
-        <div className="inline-block animate-[marquee_25s_linear_infinite] will-change-transform">
-          ⚡ WELCOME TO RAF BY DESIGN • BEATS, MUSIC, DESIGN SERVICES AND HIPHOP100 CLOTHING • EXPLORE OUR LATEST WORK, RELEASES AND SERVICES • ⚡ WELCOME TO RAF BY DESIGN • BEATS, MUSIC, DESIGN SERVICES AND HIPHOP100 CLOTHING • EXPLORE OUR LATEST WORK, RELEASES AND SERVICES •
-        </div>
+      <div className="w-full bg-red-600 border-b-4 border-black text-white text-xs uppercase font-black tracking-widest py-2.5 overflow-hidden whitespace-nowrap select-none relative z-10">
+        <div className="inline-block animate-[marquee_25s_linear_infinite] will-change-transform">⚡ WELCOME TO RAF BY DESIGN • BEATS, MUSIC, DESIGN SERVICES AND HIPHOP100 CLOTHING • EXPLORE OUR LATEST WORK, RELEASES AND SERVICES • ⚡ WELCOME TO RAF BY DESIGN • BEATS, MUSIC, DESIGN SERVICES AND HIPHOP100 CLOTHING • EXPLORE OUR LATEST WORK, RELEASES AND SERVICES •</div>
       </div>
-
-      <section className="w-full mx-auto px-3 sm:px-6 md:px-8 xl:px-10 2xl:px-12 space-y-8 sm:space-y-16 pt-6 sm:pt-12 relative z-10">
-
-        {/* CATEGORIES SECTION */}
-        <FadeIn>
-          <div className="homepage-category-section w-full rounded-xl sm:rounded-2xl bg-black/75 backdrop-blur-md border-4 border-black p-3 sm:p-6 text-center shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <CategoryCarousel />
-          </div>
-        </FadeIn>
-
-        {/* LATEST BEATS DISPLAY */}
-        <FadeIn>
-          <div className="homepage-product-section homepage-beats-section w-full rounded-xl sm:rounded-2xl bg-black/75 backdrop-blur-md border-4 border-black p-3 sm:p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <div className="mb-4 sm:mb-6 border-b-4 border-black pb-2 sm:pb-3 text-center">
-              <h2 className="font-raf text-2xl sm:text-4xl uppercase tracking-wide text-red-500">
-                Beats
-              </h2>
-            </div>
-            <ProductCarousel
-              items={beats.map((beat) => ({
-                id: beat.id,
-                title: beat.title,
-                subtitle: beat.genre || "Production Instrumental",
-                image: sanitizeCloudinaryUrl(beat.artworkUrl, ""),
-                href: `/beats/${beat.id}`,
-                badge: beat.bpm ? `${beat.bpm} BPM` : "AUDIO",
-                ImageComponent: SafeImage,
-              }))}
-            />
-          </div>
-        </FadeIn>
-
-        {/* LATEST MUSIC RELEASES */}
-        <FadeIn>
-          <div className="homepage-product-section homepage-music-section w-full rounded-xl sm:rounded-2xl bg-black/75 backdrop-blur-md border-4 border-black p-3 sm:p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <div className="mb-4 sm:mb-6 border-b-4 border-black pb-2 sm:pb-3 text-center">
-              <h2 className="font-raf text-2xl sm:text-4xl uppercase tracking-wide text-red-500">
-                Music Store
-              </h2>
-            </div>
-            <ProductCarousel
-              items={music.map((release) => {
-                const targetId = release.releaseId || release.id || "";
-                return {
-                  id: release.id || targetId,
-                  title: release.title || "Untitled",
-                  subtitle: release.artist || "Unknown Artist",
-                  image: sanitizeCloudinaryUrl(release.coverUrl, ""),
-                  href: targetId ? `/music/${targetId}` : "/music",
-                  badge: "RELEASE",
-                  ImageComponent: SafeImage,
-                };
-              })}
-            />
-          </div>
-        </FadeIn>
-
-        {/* CLOTHING & APPAREL PRODUCTS */}
-        <FadeIn>
-          <div className="homepage-product-section homepage-clothing-section w-full rounded-xl sm:rounded-2xl bg-black/75 backdrop-blur-md border-4 border-black p-3 sm:p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <div className="mb-4 sm:mb-6 border-b-4 border-black pb-2 sm:pb-3 text-center">
-              <h2 className="font-raf text-2xl sm:text-4xl uppercase tracking-wide text-red-500">
-                HipHop100 Clothing
-              </h2>
-            </div>
-            <ProductCarousel
-              items={clothing.map((item) => ({
-                id: item.id,
-                title: item.name,
-                subtitle: `£${item.price.toFixed(2)}`,
-                image: sanitizeCloudinaryUrl(item.imageUrl || item.imageUrls?.[0], ""),
-                href: `/clothing/${item.id}`,
-                badge: "CLOTHING",
-                ImageComponent: SafeImage,
-              }))}
-            />
-          </div>
-        </FadeIn>
-
-        {/* SERVICES BANNER */}
-        <FadeIn>
-          <section className="w-full rounded-xl sm:rounded-2xl bg-black/75 backdrop-blur-md border-4 border-black p-3 sm:p-6 md:p-8 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <div className="mb-4 sm:mb-6 border-b-4 border-black pb-2 sm:pb-3 text-center">
-              <h2 className="font-raf text-2xl sm:text-4xl uppercase tracking-wide text-red-500">
-                Browse Services
-              </h2>
-            </div>
-
-            <div className="grid gap-3 sm:gap-6 md:grid-cols-2 w-full mx-auto">
-
-              <Link href="/beats/services" className="group">
-                <div className="relative overflow-hidden rounded-2xl border-2 border-black bg-black/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_35px_rgba(255,0,0,.25)]">
-                  <div className="relative aspect-[16/6] border-b-4 border-black">
-                    <SafeImage
-                      src="https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784140412/Music_Services_Image_hadkro.png"
-                      alt="Music Services"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/90 to-transparent pt-8 text-center">
-                    <h3 className="font-raf text-xl sm:text-2xl tracking-wide">Music Services</h3>
-                    <p className="mt-2 text-zinc-300 text-sm sm:text-base leading-6">Production • Recording • Mixing • Mastering</p>
-                  </div>
-                </div>
-              </Link>
-
-              <Link href="/design/services" className="group">
-                <div className="relative overflow-hidden rounded-2xl border-2 border-black bg-black/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_35px_rgba(255,0,0,.25)]">
-                  <div className="relative aspect-[16/6] border-b-4 border-black">
-                    <SafeImage
-                      src="https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068279/Design_Services_Image_jeaxt6.jpg"
-                      alt="Design Services"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/90 to-transparent pt-8 text-center">
-                    <h3 className="font-raf text-xl sm:text-2xl tracking-wide">Design Services</h3>
-                    <p className="mt-2 text-zinc-300 text-sm sm:text-base leading-6">Branding • Artwork • Print • Digital Design</p>
-                  </div>
-                </div>
-              </Link>
-
-            </div>
-          </section>
-        </FadeIn>
-
-        {/* ABOUT US CAROUSEL */}
-        <FadeIn>
-          <div className="w-full rounded-xl sm:rounded-2xl bg-black/75 backdrop-blur-md border-4 border-black p-3 sm:p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <div className="mb-4 sm:mb-6 border-b-4 border-black pb-2 sm:pb-3 text-center">
-              <h2 className="font-raf text-2xl sm:text-4xl uppercase tracking-wide text-red-500">
-                All About RAF
-              </h2>
-            </div>
-
-            <div className="w-full max-w-4xl mx-auto">
-              <LocalAboutCarousel />
-            </div>
-          </div>
-        </FadeIn>
-
-        {/* LIVE SOCIAL FEED */}
-        <FadeIn>
-          <div className="w-full rounded-xl sm:rounded-2xl bg-black/80 backdrop-blur-md border-4 border-black p-3 sm:p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <div className="border-b-4 border-black pb-3 mb-4 text-center">
-              <h2 className="font-raf text-2xl sm:text-4xl uppercase tracking-wide text-red-500">
-                RAF Social Feed
-              </h2>
-              <p className="mt-2 mx-auto text-sm leading-6 text-zinc-300">
-                Latest videos and posts. Select a thumbnail to watch or read more.
-              </p>
-            </div>
-
-            <div className="grid grid-flow-col auto-cols-[minmax(220px,75%)] gap-3 overflow-x-auto overscroll-x-contain snap-x snap-proximity pb-2 md:grid-flow-row md:auto-cols-auto md:grid-cols-3 md:overflow-visible">
-              <SocialPlatformCarousel
-                title="YouTube"
-                channelUrl="https://www.youtube.com/@rafbydesign"
-                channelHandle="@rafbydesign"
-                loading={socialLoading}
-                posts={socialFeed.filter((post) => post.platform.toUpperCase() === "YOUTUBE")}
-              />
-              <SocialPlatformCarousel
-                title="Instagram"
-                channelUrl="https://www.instagram.com/rafbydesign"
-                channelHandle="@rafbydesign"
-                loading={socialLoading}
-                posts={socialFeed.filter((post) => post.platform.toUpperCase() === "INSTAGRAM")}
-              />
-              <SocialPlatformCarousel
-                title="TikTok"
-                channelUrl="https://www.tiktok.com/@rafbydesignmusic"
-                channelHandle="@rafbydesignmusic"
-                loading={socialLoading}
-                posts={socialFeed.filter((post) => post.platform.toUpperCase() === "TIKTOK")}
-              />
-            </div>
-          </div>
-        </FadeIn>
-
-      </section>
-
+      <div className="home-sections">
+        <CompactHomeSection id="explore" title="Explore RAF By Design" summary="Everything creative in one place." cards={categories} />
+        <CompactHomeSection id="beats" title="Beats" summary="Browse our latest instrumentals." cards={beats.map((beat) => ({
+          id: beat.id, title: beat.title, subtitle: beat.genre || "Production Instrumental", image: sanitizeCloudinaryUrl(beat.artworkUrl, ""), href: `/beats/${beat.id}`, tag: beat.bpm ? `${beat.bpm} BPM` : "AUDIO", meta: "View beat →",
+        }))} busy={catalogueLoading} emptyText={catalogueLoading ? "Loading the latest beats…" : "Explore the beat store for available instrumentals."} />
+        <CompactHomeSection id="music" title="Music Store" summary="Latest albums, singles and releases." cards={music.map((release) => {
+          const targetId = release.releaseId || release.id || "";
+          return { id: release.id || targetId, title: release.title || "Untitled", subtitle: release.artist || "RAF By Design", image: sanitizeCloudinaryUrl(release.coverUrl, ""), href: targetId ? `/music/${targetId}` : "/music", tag: "RELEASE", meta: "View release →" };
+        })} busy={catalogueLoading} emptyText={catalogueLoading ? "Loading the latest releases…" : "Explore the music store for available releases."} />
+        <CompactHomeSection id="clothing" title="HipHop100 Clothing" summary="Clothing and merchandise from HipHop100." cards={clothing.map((item) => ({
+          id: item.id, title: item.name, subtitle: `£${Number(item.price).toFixed(2)}`, image: sanitizeCloudinaryUrl(item.imageUrl || item.imageUrls?.[0], ""), href: `/clothing/${item.id}`, tag: "CLOTHING", meta: "View item →",
+        }))} busy={catalogueLoading} emptyText={catalogueLoading ? "Loading the latest clothing…" : "Explore the clothing store for available products."} />
+        <CompactHomeSection id="services" title="Browse Services" summary="Music production and graphic design." cards={services} columns={2} />
+        <CompactHomeSection id="about" title="All About RAF" summary="Our story, services and selected work." cards={about} />
+        <CompactHomeSection id="social" title="RAF Social Feed" summary="Latest YouTube and Instagram posts, plus TikTok." cards={socialCards} columns={3} busy={socialLoading} />
+      </div>
       <NewsletterModal />
     </main>
   );
