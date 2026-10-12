@@ -53,7 +53,7 @@ function fixture(options = {}) {
       console: { error() {} },
       fetch: async (url, init) => {
         state.fetchCalls.push({ url, ...init, body: JSON.parse(init.body) });
-        const reply = state.responses?.shift() || { status: 200, body: { status: "pending" } };
+        const reply = state.responses?.shift() || { status: 200, body: { status: "subscribed" } };
         if (reply.throw) throw new Error("Test network failure");
         return new Response(JSON.stringify(reply.body), { status: reply.status });
       },
@@ -136,16 +136,19 @@ test("contact throttling returns Retry-After and sends nothing", async () => {
   assert.equal(f.state.emailCalls.length, 0);
 });
 
-test("new newsletter subscriptions request confirmation and normalize email", async () => {
+test("new newsletter subscriptions opt in immediately and normalize email", async () => {
   const f = fixture();
   const response = await f.load("app/api/newsletter/route.ts").POST(request("/api/newsletter", { email: " USER@Example.com " }));
   const body = await response.json();
   assert.equal(response.status, 200);
-  assert.equal(body.status, "pending");
-  assert.match(body.message, /confirm/);
+  assert.equal(body.success, true);
+  assert.equal(body.status, "subscribed");
+  assert.match(body.message, /Thanks for joining/);
+  assert.doesNotMatch(body.message, /confirm/);
+  assert.equal(f.state.fetchCalls.length, 1);
   assert.equal(f.state.fetchCalls[0].method, "PUT");
   assert.equal(f.state.fetchCalls[0].body.email_address, "user@example.com");
-  assert.equal(f.state.fetchCalls[0].body.status_if_new, "pending");
+  assert.equal(f.state.fetchCalls[0].body.status_if_new, "subscribed");
 });
 
 test("confirmed newsletter members are preserved on repeat signup", async () => {
@@ -156,12 +159,33 @@ test("confirmed newsletter members are preserved on repeat signup", async () => 
   assert.equal(f.state.fetchCalls[0].body.status, undefined);
 });
 
-test("previously unsubscribed members must reconfirm", async () => {
-  const f = fixture({ responses: [{ status: 200, body: { status: "unsubscribed" } }, { status: 200, body: { status: "pending" } }] });
+test("a fresh form submission subscribes pending, unsubscribed and transactional contacts", async () => {
+  for (const previousStatus of ["pending", "unsubscribed", "transactional"]) {
+    const f = fixture({ responses: [{ status: 200, body: { status: previousStatus } }, { status: 200, body: { status: "subscribed" } }] });
+    const response = await f.load("app/api/newsletter/route.ts").POST(request("/api/newsletter", { email: "user@example.com" }));
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).status, "subscribed");
+    assert.equal(f.state.fetchCalls.length, 2);
+    assert.equal(f.state.fetchCalls[1].method, "PATCH");
+    assert.equal(f.state.fetchCalls[1].body.status, "subscribed");
+    assert.equal(Object.keys(f.state.fetchCalls[1].body).join(), "status");
+  }
+});
+
+test("unsuccessful status changes never claim immediate subscription", async () => {
+  for (const reply of [{ status: 200, body: { status: "pending" } }, { status: 400, body: {} }, { status: 500, body: {} }, { throw: true }]) {
+    const f = fixture({ responses: [{ status: 200, body: { status: "pending" } }, reply] });
+    const response = await f.load("app/api/newsletter/route.ts").POST(request("/api/newsletter", { email: "user@example.com" }));
+    assert.ok(response.status >= 400);
+    assert.equal((await response.json()).success, undefined);
+  }
+});
+
+test("cleaned addresses are not automatically resubscribed", async () => {
+  const f = fixture({ responses: [{ status: 200, body: { status: "cleaned" } }] });
   const response = await f.load("app/api/newsletter/route.ts").POST(request("/api/newsletter", { email: "user@example.com" }));
-  assert.equal((await response.json()).status, "pending");
-  assert.equal(f.state.fetchCalls[1].method, "PATCH");
-  assert.equal(f.state.fetchCalls[1].body.status, "pending");
+  assert.equal(response.status, 400);
+  assert.equal(f.state.fetchCalls.length, 1);
 });
 
 test("newsletter provider errors never produce a subscribed response", async () => {

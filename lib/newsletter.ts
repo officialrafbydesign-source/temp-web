@@ -33,16 +33,17 @@ export async function subscribeToNewsletter(email: string) {
     return member;
   }
 
-  // Preserve confirmed members and request email confirmation for new signups.
-  let member = await update("PUT", { email_address: email, status_if_new: "pending" });
-  if (member.status === "unsubscribed" || member.status === "transactional") {
-    member = await update("PATCH", { status: "pending" });
+  // A visitor explicitly submitting the newsletter form opts in immediately.
+  // Existing subscribers keep their profile data; only this address is updated.
+  let member = await update("PUT", { email_address: email, status_if_new: "subscribed" });
+  if (member.status === "pending" || member.status === "unsubscribed" || member.status === "transactional") {
+    member = await update("PATCH", { status: "subscribed" });
   }
   if (member.status === "subscribed") {
     return { status: "subscribed" as const, message: "You’re subscribed to RAF. Thanks for joining." };
   }
   if (member.status === "pending") {
-    return { status: "pending" as const, message: "Check your email to confirm your subscription to RAF." };
+    throw new PublicFormError("We couldn’t complete your subscription right now. Please try again later.", 503);
   }
   throw new PublicFormError("We couldn’t subscribe this address. Please try another email or contact us.", 400);
 }
