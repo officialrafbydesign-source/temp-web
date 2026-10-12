@@ -114,16 +114,6 @@ export const DESIGN_SERVICES_CATALOG: MainService[] = [
     title: "Photo Editing",
     options: [{ label: "Retouch Only", price: 30 }],
   },
-  {
-    id: "mockup-design",
-    title: "Mockup Design",
-    options: [{ label: "2D Mockup Design", price: 50 }],
-  },
-  {
-    id: "packaging-design",
-    title: "Packaging Design",
-    options: [{ label: "Custom Packaging Design", price: 50 }],
-  },
 ];
 
 export type DesignSelection = {
@@ -175,7 +165,7 @@ export function priceDesignSelection(selection: DesignSelection) {
   // These need an agreed quote before payment, even where a guide price is shown.
   const requiresQuote = selection.extraRevisions || addOnCount > 0 ||
     /extra|add-on|custom/i.test(option.label) ||
-    ["custom-font", "gif-design", "packaging-design"].includes(service.id) ||
+    ["custom-font", "gif-design"].includes(service.id) ||
     (service.id === "photo-editing" && selection.photoCount > 1) ||
     (service.id === "advert-photos" && selection.advertPhotoCount > 1);
 

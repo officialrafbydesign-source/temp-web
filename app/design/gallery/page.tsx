@@ -21,10 +21,7 @@ const defaultGalleryData: ServiceGallery[] = [
     images: [
       { url: "/images/comission__natural_flavours_log.png", alt: "Natural Flavours Logo" },
       { url: "/images/comission__reality_team_tv_logo.png", alt: "Reality Team TV Logo" },
-      { url: "/images/comission__table_time_podcast_logo_mono.jpg", alt: "Table Time Podcast Logo Mono" },
       { url: "/images/comission__table_time_podcast_logo.png", alt: "Table Time Podcast Logo" },
-      { url: "/images/commission__iamlensphotography_logo.jpg", alt: "Iam Lens Photography Logo" },
-      { url: "/images/commission__js_painting_and_decorating_logo.jpg", alt: "JS Painting and Decorating Logo" },
       { url: "/images/duchess_beauty_logo_redesign.png", alt: "Duchess Beauty Logo Redesign" },
       { url: "/images/duchess_beauty_logo_redesign_white.png", alt: "Duchess Beauty Logo Redesign White" },
       { url: "/images/LL Logo White.png", alt: "LL Logo White" },

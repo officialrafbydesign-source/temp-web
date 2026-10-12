@@ -177,27 +177,11 @@ const initialBusinessDigitalServices: ServiceItem[] = [
       "Custom Editing: +£20 per photo",
     ],
   },
-  {
-    title: "Mockup Design",
-    image: "",
-    requestLink: "/design/book",
-    eyebrow: "Product visualisation",
-    description:
-      "2D mockup design showing how your chosen product, artwork, branding, or design will look before final production.",
-    bullets: ["2D Mockup Design: £50"],
-  },
-  {
-    title: "Packaging Design",
-    image: "",
-    requestLink: "/design/book",
-    eyebrow: "Product packaging",
-    description:
-      "Custom package design created around your product, branding, supplied brief, and visual requirements.",
-    bullets: ["Packaging Design: £50"],
-  },
 ];
 
 const upcomingServices = [
+  "Mockup Design",
+  "Packaging Design",
   "Sticker Design",
   "Background Design",
   "Watermark Design",
