@@ -1,3 +1,4 @@
+import { catalogueAdminAction } from "@/lib/catalogueAdmin";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminApi } from "@/lib/adminApi";
@@ -75,6 +76,7 @@ export async function GET() {
 
   try {
     const products = await prisma.product.findMany({
+        where: { deletedAt: null },
       include: {
         variants: true,
       },
@@ -263,44 +265,5 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const authorization = await authorizeAdminApi();
-  if (!authorization.authorized) return authorization.response;
-
-  try {
-    const { searchParams } = new URL(req.url);
-
-    const id = searchParams.get("id");
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "Missing clothing item id" },
-        { status: 400 }
-      );
-    }
-
-    await prisma.$transaction([
-      prisma.productVariant.deleteMany({
-        where: {
-          productId: id,
-        },
-      }),
-
-      prisma.product.delete({
-        where: {
-          id,
-        },
-      }),
-    ]);
-
-    return NextResponse.json({
-      success: true,
-    });
-  } catch (err) {
-    console.error("DELETE clothing error:", err);
-
-    return NextResponse.json(
-      { error: "Failed to delete clothing item" },
-      { status: 500 }
-    );
-  }
+  return catalogueAdminAction(req, "clothing", new URL(req.url).searchParams.get("id") || "");
 }

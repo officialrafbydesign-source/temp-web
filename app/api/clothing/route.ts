@@ -1,3 +1,6 @@
+import { authorizeAdminApi } from "@/lib/adminApi";
+import { catalogueAdminAction } from "@/lib/catalogueAdmin";
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -71,6 +74,7 @@ function normaliseRange(value: any): string | null {
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
+        where: PUBLIC_CATALOGUE_WHERE,
       include: {
         variants: true,
       },
@@ -91,6 +95,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.authorized) return authorization.response;
   try {
     const {
       name,
@@ -162,6 +168,8 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.authorized) return authorization.response;
   try {
     const {
       id,
@@ -253,41 +261,5 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-
-    const id = searchParams.get("id");
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "Missing clothing item id" },
-        { status: 400 }
-      );
-    }
-
-    await prisma.$transaction([
-      prisma.productVariant.deleteMany({
-        where: {
-          productId: id,
-        },
-      }),
-
-      prisma.product.delete({
-        where: {
-          id,
-        },
-      }),
-    ]);
-
-    return NextResponse.json({
-      success: true,
-    });
-  } catch (err) {
-    console.error("DELETE clothing error:", err);
-
-    return NextResponse.json(
-      { error: "Failed to delete clothing item" },
-      { status: 500 }
-    );
-  }
+  return catalogueAdminAction(req, "clothing", new URL(req.url).searchParams.get("id") || "");
 }

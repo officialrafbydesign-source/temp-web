@@ -1,9 +1,11 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
     const products = await prisma.musicProduct.findMany({
+        where: PUBLIC_CATALOGUE_WHERE,
       include: {
         release: {
           include: {

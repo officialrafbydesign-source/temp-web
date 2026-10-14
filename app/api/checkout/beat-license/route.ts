@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
       where: { id: licenseId },
     });
 
-    if (!beat || !license) {
+    if (!beat || !license || license.beatId !== beatId || !beat.isAvailable || !isPublicCatalogueItem(beat)) {
       return NextResponse.json(
         { error: "Beat or license not found" },
         { status: 404 }

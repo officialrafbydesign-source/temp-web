@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -16,7 +17,7 @@ export async function GET(
       },
     });
 
-    if (!beat) {
+    if (!isPublicCatalogueItem(beat) || !beat?.isAvailable) {
       return NextResponse.json({ error: "Beat not found" }, { status: 404 });
     }
 

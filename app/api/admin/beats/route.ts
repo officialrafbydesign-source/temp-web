@@ -40,6 +40,7 @@ export async function GET() {
   try {
     const beats =
       await prisma.beat.findMany({
+        where: { deletedAt: null },
         include: {
           licenses:
             true,
@@ -86,6 +87,8 @@ export async function GET() {
           return {
             id:
               beat.id,
+            isPublished: beat.isPublished,
+            isAvailable: beat.isAvailable,
 
             title:
               beat.title,
@@ -217,7 +220,7 @@ export async function POST(
         })
       : null;
 
-    if (body.duplicateSourceId && !source) {
+    if (body.duplicateSourceId && (!source || source.deletedAt)) {
       return NextResponse.json({ error: "The source beat no longer exists. Cancel the copy and reload the catalogue." }, { status: 404 });
     }
 
@@ -355,6 +358,8 @@ export async function POST(
     const formattedBeat = {
       id:
         newBeat.id,
+      isPublished: newBeat.isPublished,
+      isAvailable: newBeat.isAvailable,
 
       title:
         newBeat.title,

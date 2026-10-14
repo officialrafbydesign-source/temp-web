@@ -1,3 +1,4 @@
+import { catalogueAdminAction } from "@/lib/catalogueAdmin";
 import {
   NextResponse,
 } from "next/server";
@@ -561,6 +562,7 @@ export async function GET() {
   try {
     const products =
       await prisma.musicProduct.findMany({
+        where: { deletedAt: null },
         include: {
           release: {
             include:
@@ -1179,112 +1181,6 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  req: Request
-) {
-  const authorization =
-    await authorizeAdminApi();
-
-  if (
-    !authorization.authorized
-  ) {
-    return authorization.response;
-  }
-
-  try {
-    const {
-      searchParams,
-    } =
-      new URL(req.url);
-
-    const id =
-      cleanRequiredString(
-        searchParams.get(
-          "id"
-        )
-      );
-
-    if (!id) {
-      return jsonResponse(
-        {
-          error:
-            "Missing product id",
-        },
-        400
-      );
-    }
-
-    const product =
-      await prisma.musicProduct.findUnique({
-        where: {
-          id,
-        },
-      });
-
-    if (!product) {
-      return jsonResponse(
-        {
-          error:
-            "Product not found",
-        },
-        404
-      );
-    }
-
-    await prisma.$transaction(
-      async (
-        transaction
-      ) => {
-        await transaction.musicProduct.delete({
-          where: {
-            id,
-          },
-        });
-
-        const remainingProducts =
-          await transaction.musicProduct.count({
-            where: {
-              releaseId:
-                product.releaseId,
-            },
-          });
-
-        if (
-          remainingProducts ===
-          0
-        ) {
-          await transaction.song.deleteMany({
-            where: {
-              releaseId:
-                product.releaseId,
-            },
-          });
-
-          await transaction.release.delete({
-            where: {
-              id:
-                product.releaseId,
-            },
-          });
-        }
-      }
-    );
-
-    return jsonResponse({
-      success: true,
-    });
-  } catch (error) {
-    console.error(
-      "DELETE /api/admin/music-products error:",
-      error
-    );
-
-    return jsonResponse(
-      {
-        error:
-          "Failed to delete music product",
-      },
-      500
-    );
-  }
+export async function DELETE(req: Request) {
+  return catalogueAdminAction(req, "music", new URL(req.url).searchParams.get("id") || "");
 }

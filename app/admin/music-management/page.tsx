@@ -1,5 +1,7 @@
 "use client";
 
+import CatalogueActions from "../components/CatalogueActions";
+
 import { useState, useEffect } from "react";
 import AdminLayout from "../components/AdminLayout";
 import { duplicateTracks } from "@/lib/catalogueDuplication";
@@ -774,9 +776,9 @@ export default function MusicManagementPage() {
                               Edit
                             </button>
                             <button type="button" disabled={submitting} onClick={() => handleDuplicate(p)} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold rounded-lg text-xs disabled:opacity-50">Duplicate</button>
-                            <button onClick={() => handleDelete(p.id)} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-semibold rounded-lg text-xs transition-colors">
-                              Delete
-                            </button>
+                            <CatalogueActions kind="music" id={p.id} isPublished={p.isPublished} disabled={submitting}
+                              onVisibilityChange={(isPublished) => setMusicProducts((items) => items.map((item) => item.id === p.id ? { ...item, isPublished } : item))}
+                              onDeleted={() => { setMusicProducts((items) => items.filter((item) => item.id !== p.id)); if (editingId === p.id) resetForm(); }} />
                           </div>
                         </td>
                       </tr>
@@ -847,9 +849,9 @@ export default function MusicManagementPage() {
                       Edit Data
                     </button>
                     <button type="button" disabled={submitting} onClick={() => handleDuplicate(p)} className="flex-1 bg-emerald-50 border border-emerald-100 text-emerald-700 font-semibold py-2 rounded-lg text-xs hover:bg-emerald-100 disabled:opacity-50">Duplicate</button>
-                    <button onClick={() => handleDelete(p.id)} className="bg-red-50 text-red-600 border border-red-100 font-semibold px-3 py-2 rounded-lg text-xs hover:bg-red-100 transition-all">
-                      Delete
-                    </button>
+                    <CatalogueActions kind="music" id={p.id} isPublished={p.isPublished} disabled={submitting}
+                              onVisibilityChange={(isPublished) => setMusicProducts((items) => items.map((item) => item.id === p.id ? { ...item, isPublished } : item))}
+                              onDeleted={() => { setMusicProducts((items) => items.filter((item) => item.id !== p.id)); if (editingId === p.id) resetForm(); }} />
                   </div>
                 </div>
               ))

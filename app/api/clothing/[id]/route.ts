@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -26,7 +27,7 @@ export async function GET(
       },
     });
 
-    if (!product) {
+    if (!product || !isPublicCatalogueItem(product)) {
       return NextResponse.json(
         { error: "Clothing product not found" },
         { status: 404 }

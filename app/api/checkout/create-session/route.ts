@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { ProductType } from "@prisma/client";
@@ -179,7 +180,7 @@ async function verifyCartItem(
     }
 
     if (
-      !license.beat.isAvailable
+      !license.beat.isAvailable || !isPublicCatalogueItem(license.beat)
     ) {
       throw new CheckoutError(
         `${license.beat.title} is no longer available`
@@ -236,14 +237,14 @@ async function verifyCartItem(
           },
 
           include: {
-            release:
-              true,
+            release: { include: { product: true } },
           },
         });
 
       if (
         !song ||
         !song.sellIndividually ||
+        !isPublicCatalogueItem(song.release.product) ||
         song.price === null ||
         song.price <= 0
       ) {
@@ -315,7 +316,7 @@ async function verifyCartItem(
         });
     }
 
-    if (!musicProduct) {
+    if (!musicProduct || !isPublicCatalogueItem(musicProduct)) {
       throw new CheckoutError(
         `${item.title} is no longer available`
       );
@@ -386,7 +387,7 @@ async function verifyCartItem(
         },
       });
 
-    if (!product) {
+    if (!product || !isPublicCatalogueItem(product)) {
       throw new CheckoutError(
         `${item.title} is no longer available`
       );

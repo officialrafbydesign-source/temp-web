@@ -1,5 +1,7 @@
 "use client";
 
+import CatalogueActions from "../components/CatalogueActions";
+
 import { useEffect, useState } from "react";
 import AdminLayout from "../components/AdminLayout";
 import { copyColourVariants, duplicateVariant, hasDuplicateVariants } from "@/lib/catalogueDuplication";
@@ -12,6 +14,7 @@ type Variant = {
 };
 
 type Product = {
+  isPublished?: boolean;
   id: string;
   name: string;
   brand?: string | null;
@@ -1159,16 +1162,9 @@ export default function ProductsAdminPage() {
                               </button>
                               <button type="button" disabled={submitting} onClick={() => handleDuplicate(product)} className="bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 disabled:opacity-50">Duplicate</button>
 
-                              <button
-                                onClick={() =>
-                                  handleDelete(
-                                    product.id
-                                  )
-                                }
-                                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                              >
-                                Delete
-                              </button>
+                              <CatalogueActions kind="clothing" id={product.id} isPublished={product.isPublished} disabled={submitting}
+                              onVisibilityChange={(isPublished) => setProducts((items) => items.map((item) => item.id === product.id ? { ...item, isPublished } : item))}
+                              onDeleted={() => { setProducts((items) => items.filter((item) => item.id !== product.id)); if (editingId === product.id) resetForm(); }} />
                             </div>
                           </td>
                         </tr>
@@ -1322,16 +1318,9 @@ export default function ProductsAdminPage() {
                           </button>
                           <button type="button" disabled={submitting} onClick={() => handleDuplicate(product)} className="bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 disabled:opacity-50">Duplicate</button>
 
-                          <button
-                            onClick={() =>
-                              handleDelete(
-                                product.id
-                              )
-                            }
-                            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                          >
-                            Delete
-                          </button>
+                          <CatalogueActions kind="clothing" id={product.id} isPublished={product.isPublished} disabled={submitting}
+                              onVisibilityChange={(isPublished) => setProducts((items) => items.map((item) => item.id === product.id ? { ...item, isPublished } : item))}
+                              onDeleted={() => { setProducts((items) => items.filter((item) => item.id !== product.id)); if (editingId === product.id) resetForm(); }} />
                         </div>
                       </div>
                     </div>

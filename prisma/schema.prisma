@@ -85,6 +85,8 @@ model AuthRateLimit {
 //////////////////////
 
 model Beat {
+  isPublished Boolean @default(true)
+  deletedAt DateTime?
   id          String  @id @default(cuid())
   title       String
   genre       String?
@@ -221,6 +223,8 @@ model Song {
 }
 
 model MusicProduct {
+  isPublished Boolean @default(true)
+  deletedAt DateTime?
   id String @id @default(cuid())
 
   releaseId String  @unique
@@ -240,6 +244,8 @@ model MusicProduct {
 //////////////////////
 
 model Product {
+  isPublished Boolean @default(true)
+  deletedAt DateTime?
   id          String   @id @default(cuid())
   name        String
   brand       String?

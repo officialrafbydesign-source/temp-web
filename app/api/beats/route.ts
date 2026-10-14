@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import {
   NextResponse,
   NextRequest,
@@ -88,6 +89,7 @@ export async function GET(
         await db.beat.findMany({
           where: {
             isAvailable: true,
+            ...PUBLIC_CATALOGUE_WHERE,
           },
           skip,
           take: limit,
@@ -104,6 +106,7 @@ export async function GET(
         await db.beat.findMany({
           where: {
             isAvailable: true,
+            ...PUBLIC_CATALOGUE_WHERE,
           },
           include: {
             licenses: true,

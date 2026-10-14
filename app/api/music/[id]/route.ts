@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
@@ -38,7 +39,7 @@ export async function GET(
         },
       });
 
-    if (product) {
+    if (product && isPublicCatalogueItem(product)) {
       return NextResponse.json({
         id:
           product.id,
@@ -100,7 +101,7 @@ export async function GET(
 
     if (
       !release ||
-      !release.product
+      !release.product || !isPublicCatalogueItem(release.product)
     ) {
       return NextResponse.json(
         {

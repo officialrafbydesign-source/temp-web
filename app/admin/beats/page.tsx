@@ -1,5 +1,7 @@
 "use client";
 
+import CatalogueActions from "../components/CatalogueActions";
+
 import {
   useEffect,
   useState,
@@ -12,6 +14,8 @@ import Script from "next/script";
 import AdminLayout from "../components/AdminLayout";
 
 type BeatTrack = {
+  isPublished?: boolean;
+  isAvailable?: boolean;
   id: string;
   title: string;
   bpm: number;
@@ -2490,6 +2494,9 @@ export default function AdminBeatsPage() {
                           </td>
                           <td className="p-3 align-top">
                             <button type="button" disabled={isSubmitting} onClick={() => handleDuplicateBeat(beat)} className="rounded bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50">Duplicate</button>
+                            <CatalogueActions kind="beats" id={beat.id} isPublished={beat.isPublished} available={beat.isAvailable !== false} disabled={isSubmitting}
+                              onVisibilityChange={(isPublished) => setBeats((items) => items.map((item) => item.id === beat.id ? { ...item, isPublished } : item))}
+                              onDeleted={() => { setBeats((items) => items.filter((item) => item.id !== beat.id)); setSelectedIds((ids) => ids.filter((id) => id !== beat.id)); }} />
                           </td>
                         </tr>
                       );

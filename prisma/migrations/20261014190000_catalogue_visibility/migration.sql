@@ -1,0 +1,7 @@
+-- Additive catalogue visibility fields. Existing listings remain published.
+ALTER TABLE "Beat" ADD COLUMN IF NOT EXISTS "isPublished" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "Beat" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "isPublished" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
+ALTER TABLE "MusicProduct" ADD COLUMN IF NOT EXISTS "isPublished" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "MusicProduct" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);

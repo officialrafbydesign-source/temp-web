@@ -1,3 +1,5 @@
+import { authorizeAdminApi } from "@/lib/adminApi";
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextResponse } from "next/server";
 import * as prismaModule from "@/lib/prisma";
 
@@ -30,6 +32,7 @@ function cleanCloudinaryUrl(url: string | null | undefined): string | null {
 export async function GET() {
   try {
     const products = await db.product.findMany({
+        where: PUBLIC_CATALOGUE_WHERE,
       orderBy: {
         createdAt: "desc",
       },
@@ -52,6 +55,8 @@ export async function GET() {
 // POST HANDLER (Admin creation)
 // ========================================================
 export async function POST(req: Request) {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.authorized) return authorization.response;
   try {
     const data = await req.formData();
 

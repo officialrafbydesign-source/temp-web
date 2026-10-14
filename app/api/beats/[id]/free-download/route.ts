@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import {
   NextRequest,
   NextResponse,
@@ -157,6 +158,8 @@ export async function POST(
 
         select: {
           id: true,
+          isPublished: true,
+          deletedAt: true,
           title: true,
           audioUrl: true,
           freeDownload:
@@ -166,7 +169,7 @@ export async function POST(
         },
       });
 
-    if (!beat) {
+    if (!beat || !isPublicCatalogueItem(beat)) {
       return errorResponse(
         "Beat not found",
         404

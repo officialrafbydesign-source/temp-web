@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 // app/shop/[id]/page.tsx
 import { notFound } from "next/navigation";
 
@@ -24,7 +25,7 @@ export default async function ShopProductPage({ params }: PageProps) {
     include: { licenses: true },
   });
 
-  if (!product) return notFound();
+  if (!product || !product.isAvailable || !isPublicCatalogueItem(product)) return notFound();
 
   return (
     <div className="p-8 max-w-3xl mx-auto">

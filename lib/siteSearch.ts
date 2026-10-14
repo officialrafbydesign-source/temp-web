@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 
@@ -38,21 +39,21 @@ export async function searchSite(query: string) {
   const contains = { contains: query, mode: "insensitive" as const };
   const groups = await Promise.allSettled([
     prisma.beat.findMany({
-      where: { isAvailable: true, OR: [{ title: contains }, { genre: contains }, { description: contains }] },
+      where: { ...PUBLIC_CATALOGUE_WHERE, isAvailable: true, OR: [{ title: contains }, { genre: contains }, { description: contains }] },
       select: { id: true, title: true, genre: true, artworkUrl: true },
       orderBy: { createdAt: "desc" }, take: 24,
     }).then((beats): SiteSearchResult[] => beats.map((beat) => ({
       id: beat.id, title: beat.title, description: beat.genre || "Instrumental", href: `/beats/${encodeURIComponent(beat.id)}`, image: beat.artworkUrl, kind: "Beats",
     }))),
     prisma.musicProduct.findMany({
-      where: { release: { OR: [{ title: contains }, { genre: contains }, { description: contains }, { artist: { name: contains } }, { songs: { some: { title: contains } } }] } },
+      where: { ...PUBLIC_CATALOGUE_WHERE, release: { OR: [{ title: contains }, { genre: contains }, { description: contains }, { artist: { name: contains } }, { songs: { some: { title: contains } } }] } },
       select: { id: true, release: { select: { id: true, title: true, coverUrl: true, artist: { select: { name: true } } } } },
       orderBy: { createdAt: "desc" }, take: 24,
     }).then((products): SiteSearchResult[] => products.map((product) => ({
       id: product.id, title: product.release.title, description: product.release.artist.name, href: `/music/${encodeURIComponent(product.release.id)}`, image: product.release.coverUrl, kind: "Music",
     }))),
     prisma.product.findMany({
-      where: { OR: [{ name: contains }, { brand: contains }, { category: contains }, { description: contains }, { range: contains }] },
+      where: { ...PUBLIC_CATALOGUE_WHERE, OR: [{ name: contains }, { brand: contains }, { category: contains }, { description: contains }, { range: contains }] },
       select: { id: true, name: true, category: true, imageUrls: true },
       orderBy: { createdAt: "desc" }, take: 24,
     }).then((products): SiteSearchResult[] => products.map((product) => ({

@@ -1,3 +1,5 @@
+import { prisma } from "@/lib/prisma";
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 // app/api/checkout/music/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -10,14 +12,20 @@ export async function POST(req: NextRequest) {
   try {
     const { trackId, trackTitle, price, artworkUrl, licenseType } = await req.json();
 
-    if (!trackId || !price) {
+    if (!trackId) {
       return NextResponse.json(
         { error: "Missing track ID or price parameter" },
         { status: 400 }
       );
     }
 
-    const unitAmountPence = Math.round(parseFloat(price) * 100);
+    const track = await prisma.song.findUnique({
+      where: { id: trackId }, include: { release: { include: { product: true } } },
+    });
+    if (!track || !track.sellIndividually || !track.price || !isPublicCatalogueItem(track.release.product)) {
+      return NextResponse.json({ error: "Track is no longer available. Please use the music shop." }, { status: 404 });
+    }
+    const unitAmountPence = Math.round(track.price * 100);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -26,8 +34,8 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: "gbp",
             product_data: {
-              name: `${trackTitle} (${licenseType || "Unlimited Release"})`,
-              images: artworkUrl ? [artworkUrl] : [],
+              name: `${track.title} (${licenseType || "Unlimited Release"})`,
+              images: track.release.coverUrl ? [track.release.coverUrl] : [],
             },
             unit_amount: unitAmountPence,
           },

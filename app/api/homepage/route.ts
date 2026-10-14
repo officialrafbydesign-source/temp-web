@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -5,6 +6,7 @@ export async function GET() {
   try {
     const [beats, musicProducts, products] = await Promise.all([
       prisma.beat.findMany({
+        where: { ...PUBLIC_CATALOGUE_WHERE, isAvailable: true },
         take: 4,
         include: {
           licenses: true,
@@ -15,6 +17,7 @@ export async function GET() {
       }),
 
       prisma.musicProduct.findMany({
+        where: PUBLIC_CATALOGUE_WHERE,
         take: 3,
         include: {
           release: {
@@ -34,6 +37,7 @@ export async function GET() {
       }),
 
       prisma.product.findMany({
+        where: PUBLIC_CATALOGUE_WHERE,
         take: 3,
         include: {
           variants: true,
