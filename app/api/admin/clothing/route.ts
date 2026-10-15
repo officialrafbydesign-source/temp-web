@@ -2,6 +2,7 @@ import { catalogueAdminAction } from "@/lib/catalogueAdmin";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminApi } from "@/lib/adminApi";
+import { normaliseTags } from "@/lib/catalogueTags";
 
 const ALLOWED_RANGES = new Set([
   "originals",
@@ -261,6 +262,41 @@ export async function PUT(req: Request) {
       { error: "Failed to update clothing item" },
       { status: 500 }
     );
+  }
+}
+
+// Tag-only edits must preserve variant IDs, stock, prices and purchased references.
+export async function PATCH(req: Request) {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.authorized) return authorization.response;
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid tag update" }, { status: 400 });
+  }
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Invalid tag update" }, { status: 400 });
+  }
+  const { id, tags } = body as { id?: unknown; tags?: unknown };
+  if (typeof id !== "string" || !id.trim() || !Array.isArray(tags) || tags.some((tag) => typeof tag !== "string")) {
+    return NextResponse.json({ error: "Provide a clothing item ID and a list of tags." }, { status: 400 });
+  }
+
+  try {
+    const cleanedTags = normaliseTags(tags);
+    const result = await prisma.product.updateMany({
+      where: { id, deletedAt: null },
+      data: { tags: cleanedTags },
+    });
+    if (!result.count) {
+      return NextResponse.json({ error: "Clothing item not found" }, { status: 404 });
+    }
+    return NextResponse.json({ id, tags: cleanedTags });
+  } catch (error) {
+    console.error("PATCH clothing tags error:", error);
+    return NextResponse.json({ error: "Unable to save clothing tags" }, { status: 500 });
   }
 }
 

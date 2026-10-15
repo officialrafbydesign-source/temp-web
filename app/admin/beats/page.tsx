@@ -1,6 +1,8 @@
 "use client";
 
 import CatalogueActions from "../components/CatalogueActions";
+import CatalogueTagsInput from "../components/CatalogueTagsInput";
+import { normaliseTags } from "@/lib/catalogueTags";
 
 import {
   useEffect,
@@ -173,7 +175,8 @@ export default function AdminBeatsPage() {
     useState(false);
 
   const [musicalKey, setMusicalKey] = useState("");
-  const [tags, setTags] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const existingTags = normaliseTags(beats.flatMap((beat) => beat.tags || []));
 
   const [priceStd, setPriceStd] =
     useState("29.99");
@@ -682,7 +685,7 @@ export default function AdminBeatsPage() {
     setGenre(beat.genre || "");
     setFreeDownload(beat.freeDownload);
     setMusicalKey(beat.musicalKey || "");
-    setTags((beat.tags || []).join(", "));
+    setTags([...(beat.tags || [])]);
     setPriceStd(String(beat.priceStandard));
     setPricePrem(String(beat.pricePremium));
     setMp3Url(beat.mp3Url || "");
@@ -700,7 +703,7 @@ export default function AdminBeatsPage() {
     setGenre("");
     setFreeDownload(false);
     setMusicalKey("");
-    setTags("");
+    setTags([]);
     setPriceStd("29.99");
     setPricePrem("79.99");
     setMp3Url("");
@@ -731,10 +734,7 @@ export default function AdminBeatsPage() {
 
       musicalKey,
 
-      tags: tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean),
+      tags: normaliseTags(tags, existingTags),
 
       priceStandard:
         parseFloat(priceStd) || 0,
@@ -803,7 +803,7 @@ export default function AdminBeatsPage() {
       setGenre("");
       setFreeDownload(false);
       setMusicalKey("");
-      setTags("");
+      setTags([]);
       setMp3Url("");
       setZipUrl("");
       setStandardFileUrl("");
@@ -1400,16 +1400,11 @@ export default function AdminBeatsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <input
-                  type="text"
+                <CatalogueTagsInput
                   value={tags}
-                  onChange={(e) =>
-                    setTags(
-                      e.target.value
-                    )
-                  }
-                  placeholder="Tags (comma separated)"
-                  className="bg-zinc-50 border p-3 rounded-lg text-sm md:col-span-2"
+                  onChange={setTags}
+                  existingTags={existingTags}
+                  className="md:col-span-2"
                 />
 
                 <input
@@ -1421,7 +1416,7 @@ export default function AdminBeatsPage() {
                       e.target.value
                     )
                   }
-                  placeholder="Lease Price"
+                  placeholder="Leasing License price (£)"
                   className="bg-zinc-50 border p-3 rounded-lg text-sm"
                 />
 
@@ -1434,7 +1429,7 @@ export default function AdminBeatsPage() {
                       e.target.value
                     )
                   }
-                  placeholder="Premium Price"
+                  placeholder="Exclusive License price (£)"
                   className="bg-zinc-50 border p-3 rounded-lg text-sm"
                 />
               </div>
@@ -1621,7 +1616,7 @@ export default function AdminBeatsPage() {
                 </label>
 
                 <label className="flex flex-col gap-2 text-xs font-bold">
-                  Standard download — private R2 file path
+                  Leasing License — untagged MP3 or WAV file path
                 <input
                   type="text"
                   value={standardFileUrl}
@@ -1630,14 +1625,14 @@ export default function AdminBeatsPage() {
                       e.target.value
                     )
                   }
-                  placeholder="beats/example/standard.zip"
+                  placeholder="beats/example/untagged.mp3"
                   className="bg-zinc-50 border p-3 rounded-lg text-xs font-mono"
                 />
-                  <span className="font-normal text-zinc-500">ZIP containing the untagged MP3 + WAV, without stems. Paste the exact file path from the private downloads bucket, not an https link.</span>
+                  <span className="font-normal text-zinc-500">One untagged MP3 or WAV file, without stems. Paste its exact file path from the private R2 downloads bucket, not an https link. This is separate from the tagged preview.</span>
                 </label>
 
                 <label className="flex flex-col gap-2 text-xs font-bold">
-                  Premium / Exclusive download — private R2 file path
+                  Exclusive License — ZIP file path
                 <input
                   type="text"
                   value={zipUrl}
@@ -1650,7 +1645,7 @@ export default function AdminBeatsPage() {
                   className="bg-zinc-50 border p-3 rounded-lg text-xs font-mono"
                   required
                 />
-                  <span className="font-normal text-zinc-500">ZIP containing the full stems package. Use the private R2 file path, not an https link. Keep this separate from the Standard package.</span>
+                  <span className="font-normal text-zinc-500">Full ZIP package including stems. Use the private R2 file path, not an https link. This file is delivered only for the Exclusive License.</span>
                 </label>
               </div>
 
@@ -1701,8 +1696,8 @@ export default function AdminBeatsPage() {
                 </h3>
 
                 <p className="text-xs text-zinc-500 mt-1">
-                  mp3Url: public tagged preview URL. standardFileUrl: private R2 path to the Standard ZIP (untagged MP3 + WAV, no stems).
-                  zipUrl: private R2 path to the Premium / Exclusive stems ZIP. artworkUrl and backgroundUrl: public image URLs.
+                  mp3Url: public tagged preview URL. standardFileUrl: private R2 path to the Leasing License untagged MP3 or WAV (no ZIP or stems).
+                  zipUrl: private R2 path to the Exclusive License ZIP. artworkUrl and backgroundUrl: public image URLs.
                   Existing CSV and JSON field names are unchanged.
                 </p>
 
@@ -1976,8 +1971,8 @@ export default function AdminBeatsPage() {
               rows will be saved.
             </p>
             <p className="text-xs text-zinc-500 mt-2">
-              The tagged MP3 URL is for public previews and free downloads. Standard and Premium downloads use exact private R2 file paths, not public URLs.
-              Standard: untagged MP3 + WAV ZIP without stems. Premium / Exclusive: full stems ZIP.
+              The tagged MP3 URL is for public previews and free downloads. Both paid licences use exact private R2 file paths, not public URLs.
+              Leasing License: one untagged MP3 or WAV, without stems. Exclusive License: full ZIP package.
             </p>
           </div>
 
@@ -2060,6 +2055,8 @@ export default function AdminBeatsPage() {
                     )}
                   </th>
 
+                  <th className="p-3">Tags</th>
+
                   <th
                     onClick={() =>
                       handleSort(
@@ -2068,7 +2065,7 @@ export default function AdminBeatsPage() {
                     }
                     className="p-3 cursor-pointer"
                   >
-                    Standard{" "}
+                    Leasing{" "}
                     {renderSortArrow(
                       "priceStandard"
                     )}
@@ -2082,7 +2079,7 @@ export default function AdminBeatsPage() {
                     }
                     className="p-3 cursor-pointer"
                   >
-                    Premium{" "}
+                    Exclusive{" "}
                     {renderSortArrow(
                       "pricePremium"
                     )}
@@ -2107,7 +2104,7 @@ export default function AdminBeatsPage() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={13}
+                      colSpan={14}
                       className="p-8 text-center text-zinc-400"
                     >
                       Loading
@@ -2118,7 +2115,7 @@ export default function AdminBeatsPage() {
                   0 ? (
                   <tr>
                     <td
-                      colSpan={13}
+                      colSpan={14}
                       className="p-8 text-center text-zinc-400"
                     >
                       No beats found.
@@ -2302,7 +2299,19 @@ export default function AdminBeatsPage() {
                             />
                           </td>
 
-                          {/* STANDARD */}
+                          {/* TAGS */}
+
+                          <td className="p-3 min-w-[240px]">
+                            <CatalogueTagsInput
+                              label={`Tags for ${beat.title}`}
+                              value={beat.tags || []}
+                              onChange={(nextTags) => handleBulkChange(beat.id, "tags", nextTags)}
+                              existingTags={existingTags}
+                              disabled={!selected}
+                            />
+                          </td>
+
+                          {/* LEASING */}
 
                           <td className="p-3">
                             <input
@@ -2382,7 +2391,7 @@ export default function AdminBeatsPage() {
                                 />
                               </label>
                               <label className="block text-[10px] font-bold">
-                                Standard ZIP — private R2 file path
+                                Leasing License — untagged MP3 / WAV file path
                               <input
                                 disabled={
                                   !selected
@@ -2399,13 +2408,13 @@ export default function AdminBeatsPage() {
                                     e.target.value
                                   )
                                 }
-                                placeholder="beats/example/standard.zip"
+                                placeholder="beats/example/untagged.mp3"
                                 className={`${inputClass} w-full font-mono`}
                               />
                               </label>
 
                               <label className="block text-[10px] font-bold">
-                                Premium / Exclusive stems ZIP — private R2 file path
+                                Exclusive License — ZIP file path
                               <input
                                 disabled={
                                   !selected

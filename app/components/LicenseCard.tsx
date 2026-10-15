@@ -62,7 +62,7 @@ export default function LicenseCard({
   const [addedToCart, setAddedToCart] = useState(false);
 
   // 1. Raw License Title & Overrides
-  const rawTitle = license?.name || title || "Standard License";
+  const rawTitle = license?.name || title || "Leasing License";
   const lowerName = rawTitle.toLowerCase();
 
   const isExclusive =
@@ -71,9 +71,12 @@ export default function LicenseCard({
     lowerName.includes("unlimited") ||
     lowerName.includes("buyout");
 
-  const cardTitle =
-    lowerName.includes("premium") && !lowerName.includes("exclusive")
-      ? "Exclusive License"
+  // Keep legacy database names and licence IDs while showing the shop's two licence names.
+  const isLeasing = /standard|lease|leasing/.test(lowerName);
+  const cardTitle = isExclusive
+    ? "Exclusive License"
+    : isLeasing
+      ? "Leasing License"
       : rawTitle;
 
   // 2. Map Cloudinary Image
@@ -132,6 +135,13 @@ export default function LicenseCard({
 
         <div className="p-4 text-white">
           <h3 className="text-xl font-bold">{cardTitle}</h3>
+          {(isExclusive || isLeasing) && (
+            <p className="mt-2 text-sm text-white/80">
+              {isExclusive
+                ? "Full ZIP package including stems."
+                : "Untagged MP3 or WAV file. No stems."}
+            </p>
+          )}
           <p className="text-yellow-400 mt-1 text-2xl font-black">
             {displayPrice}
           </p>

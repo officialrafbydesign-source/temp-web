@@ -1,6 +1,8 @@
 "use client";
 
 import CatalogueActions from "../components/CatalogueActions";
+import CatalogueTagsInput from "../components/CatalogueTagsInput";
+import { normaliseTags } from "@/lib/catalogueTags";
 
 import { useEffect, useState } from "react";
 import AdminLayout from "../components/AdminLayout";
@@ -102,12 +104,14 @@ export default function ProductsAdminPage() {
   const [description, setDescription] = useState("");
 
   const [price, setPrice] = useState("");
-  const [salePrice, setSalePrice] = useState("");
 
   const [imageUrls, setImageUrls] = useState("");
 
   const [sku, setSku] = useState("");
-  const [tags, setTags] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDrafts, setTagDrafts] = useState<Record<string, string[]>>({});
+  const [savingTags, setSavingTags] = useState<string[]>([]);
+  const clothingTags = normaliseTags(products.flatMap((product) => product.tags || []));
 
   const [variants, setVariants] = useState<Variant[]>([
     {
@@ -223,12 +227,11 @@ export default function ProductsAdminPage() {
     setDescription("");
 
     setPrice("");
-    setSalePrice("");
 
     setImageUrls("");
 
     setSku("");
-    setTags("");
+    setTags([]);
 
     setVariants([
       {
@@ -366,14 +369,7 @@ export default function ProductsAdminPage() {
     );
 
     setPrice(
-      String(product.price ?? "")
-    );
-
-    setSalePrice(
-      product.salePrice !== null &&
-        product.salePrice !== undefined
-        ? String(product.salePrice)
-        : ""
+      String(product.salePrice ?? product.price ?? "")
     );
 
     setImageUrls(
@@ -382,9 +378,7 @@ export default function ProductsAdminPage() {
 
     setSku(product.sku || "");
 
-    setTags(
-      product.tags?.join(", ") || ""
-    );
+    setTags([...(tagDrafts[product.id] ?? product.tags ?? [])]);
 
     setVariants(
       product.variants?.length
@@ -473,13 +467,12 @@ export default function ProductsAdminPage() {
             description,
             price: Number(price),
 
-            salePrice: salePrice
-              ? Number(salePrice)
-              : null,
+            // One selling price; retire any older sale-price override on product save.
+            salePrice: null,
 
             imageUrls,
             sku,
-            tags,
+            tags: normaliseTags(tags, clothingTags),
             variants,
           }),
         }
@@ -491,6 +484,14 @@ export default function ProductsAdminPage() {
         throw new Error(
           data.error || "Save failed"
         );
+      }
+
+      if (editingId) {
+        setTagDrafts((drafts) => {
+          const next = { ...drafts };
+          delete next[editingId];
+          return next;
+        });
       }
 
       if (editingId) {
@@ -529,6 +530,57 @@ export default function ProductsAdminPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function saveClothingTags(product: Product) {
+    if (submitting || savingTags.includes(product.id) || editingId === product.id) return;
+    const nextTags = tagDrafts[product.id];
+    if (!nextTags) return;
+    setSavingTags((ids) => [...ids, product.id]);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/clothing", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: product.id, tags: normaliseTags(nextTags, clothingTags) }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to save clothing tags");
+      setProducts((items) => items.map((item) => item.id === product.id ? { ...item, tags: data.tags } : item));
+      setTagDrafts((drafts) => {
+        const next = { ...drafts };
+        delete next[product.id];
+        return next;
+      });
+      setMessage(`Tags updated for ${product.name}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to save clothing tags");
+    } finally {
+      setSavingTags((ids) => ids.filter((id) => id !== product.id));
+    }
+  }
+
+  function renderProductTags(product: Product) {
+    const saving = savingTags.includes(product.id);
+    const editing = editingId === product.id;
+    return (
+      <div className="min-w-[220px] space-y-2">
+        <CatalogueTagsInput
+          label={`Tags for ${product.name}`}
+          value={tagDrafts[product.id] ?? product.tags ?? []}
+          onChange={(nextTags) => setTagDrafts((drafts) => ({ ...drafts, [product.id]: nextTags }))}
+          existingTags={clothingTags}
+          disabled={submitting || saving || editing}
+          disabledHelp={editing ? "Use Clothing tags in the edit form above." : "Saving changes…"}
+        />
+        <button
+          type="button"
+          onClick={() => saveClothingTags(product)}
+          disabled={submitting || saving || editing || !(product.id in tagDrafts)}
+          className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-40"
+        >{saving ? "Saving tags…" : "Save tags"}</button>
+      </div>
+    );
   }
 
   const variantColours = Array.from(new Set(variants.map((variant) => variant.color.trim())));
@@ -684,28 +736,19 @@ export default function ProductsAdminPage() {
             </select>
           </div>
 
-          <input
-            className="border p-2 rounded"
-            type="number"
-            placeholder="Price (£)"
-            value={price}
-            onChange={(e) =>
-              setPrice(e.target.value)
-            }
-            required
-          />
-
-          <input
-            className="border p-2 rounded"
-            type="number"
-            placeholder="Sale Price (£)"
-            value={salePrice}
-            onChange={(e) =>
-              setSalePrice(
-                e.target.value
-              )
-            }
-          />
+          <label className="flex flex-col gap-1 text-sm font-semibold">
+            Price (£)
+            <input
+              className="border p-2 rounded font-normal"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Price (£)"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              required
+            />
+          </label>
 
           <input
             className="border p-2 rounded md:col-span-2"
@@ -748,13 +791,13 @@ export default function ProductsAdminPage() {
             </div>
           )}
 
-          <input
-            className="border p-2 rounded md:col-span-2"
-            placeholder="Tags (comma-separated)"
+          <CatalogueTagsInput
+            className="md:col-span-2"
+            label="Clothing tags"
             value={tags}
-            onChange={(e) =>
-              setTags(e.target.value)
-            }
+            onChange={setTags}
+            existingTags={clothingTags}
+            disabled={submitting}
           />
 
           <textarea
@@ -883,7 +926,7 @@ export default function ProductsAdminPage() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || savingTags.length > 0}
             className="md:col-span-2 bg-green-600 text-white py-2 rounded hover:bg-green-700 disabled:opacity-50"
           >
             {submitting
@@ -1029,10 +1072,6 @@ export default function ProductsAdminPage() {
                     </th>
 
                     <th className="p-3 text-left">
-                      Sale
-                    </th>
-
-                    <th className="p-3 text-left">
                       SKU
                     </th>
 
@@ -1117,17 +1156,8 @@ export default function ProductsAdminPage() {
                           <td className="p-3">
                             £
                             {
-                              product.price
+                              product.salePrice ?? product.price
                             }
-                          </td>
-
-                          <td className="p-3">
-                            {product.salePrice !==
-                              null &&
-                            product.salePrice !==
-                              undefined
-                              ? `£${product.salePrice}`
-                              : "—"}
                           </td>
 
                           <td className="p-3">
@@ -1140,12 +1170,7 @@ export default function ProductsAdminPage() {
                           </td>
 
                           <td className="p-3">
-                            {product.tags
-                              ?.length
-                              ? product.tags.join(
-                                  ", "
-                                )
-                              : "—"}
+                            {renderProductTags(product)}
                           </td>
 
                           <td className="p-3">
@@ -1248,18 +1273,8 @@ export default function ProductsAdminPage() {
                         <p>
                           Price: £
                           {
-                            product.price
+                            product.salePrice ?? product.price
                           }
-                        </p>
-
-                        <p>
-                          Sale:{" "}
-                          {product.salePrice !==
-                            null &&
-                          product.salePrice !==
-                            undefined
-                            ? `£${product.salePrice}`
-                            : "—"}
                         </p>
 
                         <p>
@@ -1273,15 +1288,7 @@ export default function ProductsAdminPage() {
                           {totalStock}
                         </p>
 
-                        <p>
-                          Tags:{" "}
-                          {product.tags
-                            ?.length
-                            ? product.tags.join(
-                                ", "
-                              )
-                            : "—"}
-                        </p>
+                        <div>{renderProductTags(product)}</div>
 
                         <div className="pt-2 space-y-1 text-sm">
                           {product.variants?.map(
