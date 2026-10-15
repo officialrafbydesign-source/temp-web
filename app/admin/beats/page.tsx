@@ -358,7 +358,7 @@ export default function AdminBeatsPage() {
   ) => {
     if (
       typeof window === "undefined" ||
-      !window.cloudinary
+      typeof window.cloudinary?.openUploadWidget !== "function"
     ) {
       alert(
         "Cloudinary widget is still loading. Please try again."
@@ -377,7 +377,7 @@ export default function AdminBeatsPage() {
 
     if (!cloudName || !uploadPreset) {
       alert(
-        "Missing Cloudinary environment variables."
+        "Image uploads need NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET in Vercel. You can also paste an existing image URL below."
       );
 
       return;
@@ -434,7 +434,7 @@ export default function AdminBeatsPage() {
   ) => {
     if (
       typeof window === "undefined" ||
-      !window.cloudinary
+      typeof window.cloudinary?.openMediaLibrary !== "function"
     ) {
       alert(
         "Cloudinary Media Library is still loading."
@@ -451,9 +451,10 @@ export default function AdminBeatsPage() {
       process.env
         .NEXT_PUBLIC_CLOUDINARY_API_KEY;
 
-    if (!cloudName || !apiKey) {
+    // Cloudinary's Media Library requires the cloud name; its API key is optional.
+    if (!cloudName) {
       alert(
-        "Cloudinary Cloud Name or API Key is missing."
+        "The image library needs NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME in Vercel. You can also paste an existing image URL below."
       );
 
       return;
@@ -462,7 +463,7 @@ export default function AdminBeatsPage() {
     window.cloudinary.openMediaLibrary(
       {
         cloud_name: cloudName,
-        api_key: apiKey,
+        ...(apiKey ? { api_key: apiKey } : {}),
         multiple: false,
         insert_caption: "Use Selected Asset",
       },
@@ -1461,7 +1462,7 @@ export default function AdminBeatsPage() {
 
                 <div className="border rounded-xl p-4 bg-zinc-50 space-y-3">
                   <h3 className="font-black text-sm">
-                    🖼 Front Artwork
+                    🖼 Foreground Image
                   </h3>
 
                   <p className="text-xs text-zinc-500">
@@ -1469,6 +1470,17 @@ export default function AdminBeatsPage() {
                     existing asset or
                     upload a new one.
                   </p>
+
+                  <label className="block text-xs font-bold">
+                    Foreground image URL
+                    <input
+                      type="url"
+                      value={artworkUrl}
+                      onChange={(e) => setArtworkUrl(e.target.value)}
+                      placeholder="https://res.cloudinary.com/..."
+                      className="mt-1 w-full border p-2 rounded-lg text-xs font-mono font-normal"
+                    />
+                  </label>
 
                   <button
                     type="button"
@@ -1531,6 +1543,17 @@ export default function AdminBeatsPage() {
                     upload a new one.
                   </p>
 
+                  <label className="block text-xs font-bold">
+                    Background image URL
+                    <input
+                      type="url"
+                      value={backgroundUrl}
+                      onChange={(e) => setBackgroundUrl(e.target.value)}
+                      placeholder="https://res.cloudinary.com/..."
+                      className="mt-1 w-full border p-2 rounded-lg text-xs font-mono font-normal"
+                    />
+                  </label>
+
                   <button
                     type="button"
                     onClick={() =>
@@ -1580,6 +1603,8 @@ export default function AdminBeatsPage() {
               </div>
 
               <div className="grid md:grid-cols-3 gap-4">
+                <label className="flex flex-col gap-2 text-xs font-bold">
+                  Public preview — tagged MP3 URL
                 <input
                   type="url"
                   value={mp3Url}
@@ -1592,31 +1617,41 @@ export default function AdminBeatsPage() {
                   className="bg-zinc-50 border p-3 rounded-lg text-xs font-mono"
                   required
                 />
+                  <span className="font-normal text-zinc-500">Used by the player and free promotional downloads. Paste a direct audio URL, not a ZIP.</span>
+                </label>
 
+                <label className="flex flex-col gap-2 text-xs font-bold">
+                  Standard download — private R2 file path
                 <input
-                  type="url"
+                  type="text"
                   value={standardFileUrl}
                   onChange={(e) =>
                     setStandardFileUrl(
                       e.target.value
                     )
                   }
-                  placeholder="Standard ZIP URL (untagged MP3 + WAV)"
+                  placeholder="beats/example/standard.zip"
                   className="bg-zinc-50 border p-3 rounded-lg text-xs font-mono"
                 />
+                  <span className="font-normal text-zinc-500">ZIP containing the untagged MP3 + WAV, without stems. Paste the exact file path from the private downloads bucket, not an https link.</span>
+                </label>
 
+                <label className="flex flex-col gap-2 text-xs font-bold">
+                  Premium / Exclusive download — private R2 file path
                 <input
-                  type="url"
+                  type="text"
                   value={zipUrl}
                   onChange={(e) =>
                     setZipUrl(
                       e.target.value
                     )
                   }
-                  placeholder="Premium / Exclusive Stems ZIP URL *"
+                  placeholder="beats/example/stems.zip"
                   className="bg-zinc-50 border p-3 rounded-lg text-xs font-mono"
                   required
                 />
+                  <span className="font-normal text-zinc-500">ZIP containing the full stems package. Use the private R2 file path, not an https link. Keep this separate from the Standard package.</span>
+                </label>
               </div>
 
               <div className="flex items-center justify-between">
@@ -1666,12 +1701,9 @@ export default function AdminBeatsPage() {
                 </h3>
 
                 <p className="text-xs text-zinc-500 mt-1">
-                  Existing
-                  artworkUrl and
-                  backgroundUrl
-                  columns are still
-                  supported for file
-                  imports.
+                  mp3Url: public tagged preview URL. standardFileUrl: private R2 path to the Standard ZIP (untagged MP3 + WAV, no stems).
+                  zipUrl: private R2 path to the Premium / Exclusive stems ZIP. artworkUrl and backgroundUrl: public image URLs.
+                  Existing CSV and JSON field names are unchanged.
                 </p>
 
                 <input
@@ -1943,6 +1975,10 @@ export default function AdminBeatsPage() {
               to edit. Only checked
               rows will be saved.
             </p>
+            <p className="text-xs text-zinc-500 mt-2">
+              The tagged MP3 URL is for public previews and free downloads. Standard and Premium downloads use exact private R2 file paths, not public URLs.
+              Standard: untagged MP3 + WAV ZIP without stems. Premium / Exclusive: full stems ZIP.
+            </p>
           </div>
 
           <div className="overflow-x-auto">
@@ -2032,7 +2068,7 @@ export default function AdminBeatsPage() {
                     }
                     className="p-3 cursor-pointer"
                   >
-                    Lease{" "}
+                    Standard{" "}
                     {renderSortArrow(
                       "priceStandard"
                     )}
@@ -2334,11 +2370,24 @@ export default function AdminBeatsPage() {
 
                           <td className="p-3 min-w-[190px]">
                             <div className="space-y-2">
+                              <label className="block text-[10px] font-bold">
+                                Public preview — tagged MP3 URL
+                                <input
+                                  disabled={!selected}
+                                  type="url"
+                                  value={beat.mp3Url || ""}
+                                  onChange={(e) => handleBulkChange(beat.id, "mp3Url", e.target.value)}
+                                  placeholder="https://.../tagged-preview.mp3"
+                                  className={`${inputClass} w-full font-mono font-normal`}
+                                />
+                              </label>
+                              <label className="block text-[10px] font-bold">
+                                Standard ZIP — private R2 file path
                               <input
                                 disabled={
                                   !selected
                                 }
-                                type="url"
+                                type="text"
                                 value={
                                   beat.standardFileUrl ||
                                   ""
@@ -2350,15 +2399,18 @@ export default function AdminBeatsPage() {
                                     e.target.value
                                   )
                                 }
-                                placeholder="Standard ZIP URL"
+                                placeholder="beats/example/standard.zip"
                                 className={`${inputClass} w-full font-mono`}
                               />
+                              </label>
 
+                              <label className="block text-[10px] font-bold">
+                                Premium / Exclusive stems ZIP — private R2 file path
                               <input
                                 disabled={
                                   !selected
                                 }
-                                type="url"
+                                type="text"
                                 value={
                                   beat.zipUrl ||
                                   ""
@@ -2370,9 +2422,34 @@ export default function AdminBeatsPage() {
                                     e.target.value
                                   )
                                 }
-                                placeholder="Premium / Exclusive ZIP URL"
+                                placeholder="beats/example/stems.zip"
                                 className={`${inputClass} w-full font-mono`}
                               />
+                              </label>
+
+                              <label className="block text-[10px] font-bold">
+                                Foreground image URL
+                                <input
+                                  disabled={!selected}
+                                  type="url"
+                                  value={beat.artworkUrl || ""}
+                                  onChange={(e) => handleBulkChange(beat.id, "artworkUrl", e.target.value)}
+                                  placeholder="https://res.cloudinary.com/..."
+                                  className={`${inputClass} w-full font-mono font-normal`}
+                                />
+                              </label>
+
+                              <label className="block text-[10px] font-bold">
+                                Background image URL
+                                <input
+                                  disabled={!selected}
+                                  type="url"
+                                  value={beat.backgroundUrl || ""}
+                                  onChange={(e) => handleBulkChange(beat.id, "backgroundUrl", e.target.value)}
+                                  placeholder="https://res.cloudinary.com/..."
+                                  className={`${inputClass} w-full font-mono font-normal`}
+                                />
+                              </label>
 
                               <div className="flex gap-1">
                                 <button

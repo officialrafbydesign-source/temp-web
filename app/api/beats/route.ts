@@ -162,6 +162,8 @@ export async function GET(
             beat.artworkUrl ||
             "/images/mascotmonored.png",
 
+          backgroundUrl: beat.backgroundImage || null,
+
           // Public tagged preview audio.
           audioUrl:
             publicAudioUrl,

@@ -128,8 +128,7 @@ export async function PUT(
                 null,
 
               backgroundImage:
-                beat.backgroundImage ||
-                null,
+                cleanOptionalUrl(beat.backgroundUrl ?? beat.backgroundImage),
 
               licenses: {
                 updateMany: [
