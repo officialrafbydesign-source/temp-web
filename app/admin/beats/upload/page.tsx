@@ -12,7 +12,6 @@ export default function UploadBeatPage() {
   const [description, setDescription] = useState("");
   const [bpm, setBpm] = useState("");
   const [key, setKey] = useState("");
-  const [genre, setGenre] = useState("");
 
   const [artwork, setArtwork] = useState<File | null>(null);
   const [audio, setAudio] = useState<File | null>(null);
@@ -55,7 +54,7 @@ const handleLicenseChange = (
     formData.append("description", description);
     formData.append("bpm", bpm);
     formData.append("key", key);
-    formData.append("genre", genre);
+    formData.append("genre", "Instrumental");
 
     formData.append("licenses", JSON.stringify(licenses));
 
@@ -76,7 +75,6 @@ const handleLicenseChange = (
       setDescription("");
       setBpm("");
       setKey("");
-      setGenre("");
       setArtwork(null);
       setAudio(null);
       setBeatFile(null);
@@ -113,11 +111,13 @@ const handleLicenseChange = (
           ></textarea>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label>BPM:</label>
             <input
               type="number"
+              step="any"
+              min="0"
               className="border rounded p-2 w-full"
               value={bpm}
               onChange={(e) => setBpm(e.target.value)}
@@ -134,15 +134,6 @@ const handleLicenseChange = (
             />
           </div>
 
-          <div>
-            <label>Genre:</label>
-            <input
-              type="text"
-              className="border rounded p-2 w-full"
-              value={genre}
-              onChange={(e) => setGenre(e.target.value)}
-            />
-          </div>
         </div>
 
         {/* LICENSES */}

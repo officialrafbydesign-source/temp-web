@@ -12,6 +12,8 @@ function load(relativePath, prisma, authorized = true) {
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const module = { exports: {} };
   const requireMock = (name) => {
+    if (name === "@/lib/beatStoreOrder") return load("lib/beatStoreOrder.ts", prisma, authorized);
+    if (name === "@/lib/beatBpm") return load("lib/beatBpm.ts", prisma, authorized);
     if (name === "@/lib/prisma") return { prisma };
     if (name === "@/lib/adminApi") return { authorizeAdminApi: async () => authorized
       ? { authorized: true }

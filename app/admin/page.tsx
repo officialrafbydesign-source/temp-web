@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AdminLayout from "./components/AdminLayout";
+import ReportingPeriodSelect from "./components/ReportingPeriodSelect";
+import { includedInReports, type ReportingPeriod } from "@/lib/adminReporting";
 
 type OrderStatus =
   | "pending"
@@ -13,6 +15,7 @@ type OrderStatus =
   | "cancelled";
 
 type Order = {
+  excludedFromReports?: boolean;
   id: string;
   email?: string | null;
   amount: number;
@@ -223,6 +226,7 @@ function statusClasses(status: string) {
 }
 
 export default function CoreSystemDashboard() {
+  const [period, setPeriod] = useState<ReportingPeriod>("current");
   const [orders, setOrders] = useState<Order[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [designEnquiries, setDesignEnquiries] = useState<DesignEnquiry[]>([]);
@@ -338,6 +342,8 @@ export default function CoreSystemDashboard() {
     loadDashboard();
   }, []);
 
+  const reportOrders = useMemo(() => orders.filter((order) => includedInReports(order, period)), [orders, period]);
+
   const grossRevenuePence = useMemo(() => {
     const revenueStatuses = new Set([
       "paid",
@@ -346,15 +352,15 @@ export default function CoreSystemDashboard() {
       "delivered",
     ]);
 
-    return orders
+    return reportOrders
       .filter((order) => revenueStatuses.has(normaliseStatus(order.status)))
       .reduce((total, order) => total + Number(order.amount || 0), 0);
-  }, [orders]);
+  }, [reportOrders]);
 
   const ordersAwaitingFulfilment = useMemo(
     () =>
       orders.filter((order) =>
-        ["paid", "processing"].includes(normaliseStatus(order.status))
+        !order.excludedFromReports && ["paid", "processing"].includes(normaliseStatus(order.status))
       ),
     [orders]
   );
@@ -446,7 +452,7 @@ export default function CoreSystemDashboard() {
   const recentActivities = useMemo<Activity[]>(() => {
     const activity: Activity[] = [];
 
-    orders.forEach((order) => {
+    reportOrders.forEach((order) => {
       activity.push({
         id: `order-${order.id}`,
         domain: "ORDERS",
@@ -529,7 +535,7 @@ export default function CoreSystemDashboard() {
       )
       .slice(0, 12);
   }, [
-    orders,
+    reportOrders,
     bookings,
     designEnquiries,
     beats,
@@ -579,6 +585,9 @@ export default function CoreSystemDashboard() {
             {loading ? "Refreshing..." : "Refresh Dashboard"}
           </button>
         </div>
+
+        <ReportingPeriodSelect value={period} onChange={setPeriod} />
+        <p className="text-xs text-zinc-500">Sales totals and order activity use this period. Fulfilment, bookings and stock show current work across all dates.</p>
 
         {loadWarning && (
           <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-sm font-medium">
@@ -645,7 +654,7 @@ export default function CoreSystemDashboard() {
                 <MetricCard
                   label="Gross Revenue"
                   value={moneyFromPence(grossRevenuePence)}
-                  detail={`${orders.length.toLocaleString()} total order records`}
+                  detail={`${reportOrders.length.toLocaleString()} included order records`}
                 />
 
                 <MetricCard

@@ -1,3 +1,4 @@
+import { parseBeatBpm, InvalidBeatBpm } from "@/lib/beatBpm";
 import {
   NextResponse,
 } from "next/server";
@@ -63,6 +64,8 @@ export async function POST(
       );
     }
 
+    for (const beat of beats) parseBeatBpm(beat.bpm);
+
     const createdBeats =
       await prisma.$transaction(
         beats.map(
@@ -87,12 +90,7 @@ export async function POST(
                     ? beat.title.trim()
                     : "Untitled",
 
-                bpm:
-                  beat.bpm
-                    ? Number(
-                        beat.bpm
-                      )
-                    : null,
+                bpm: parseBeatBpm(beat.bpm),
 
                 genre:
                   beat.genre ||
@@ -222,6 +220,8 @@ export async function POST(
           return {
             id:
               beat.id,
+            storeOrder: beat.storeOrder,
+            createdAt: beat.createdAt,
 
             title:
               beat.title,
@@ -301,6 +301,7 @@ export async function POST(
       }
     );
   } catch (error) {
+    if (error instanceof InvalidBeatBpm) return NextResponse.json({ error: error.message }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     console.error(
       "POST /api/admin/beats/bulk-upload error:",
       error

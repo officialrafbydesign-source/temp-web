@@ -1,3 +1,5 @@
+import { beatStoreOrderBy } from "@/lib/beatStoreOrder";
+import { parseBeatBpm, InvalidBeatBpm } from "@/lib/beatBpm";
 import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import {
   NextResponse,
@@ -96,9 +98,7 @@ export async function GET(
           include: {
             licenses: true,
           },
-          orderBy: {
-            createdAt: "desc",
-          },
+          orderBy: beatStoreOrderBy(),
         });
     } else {
       // Fetch the full catalog if no explicit limits are provided
@@ -111,9 +111,7 @@ export async function GET(
           include: {
             licenses: true,
           },
-          orderBy: {
-            createdAt: "desc",
-          },
+          orderBy: beatStoreOrderBy(),
         });
     }
 
@@ -149,10 +147,10 @@ export async function GET(
 
         return {
           id: beat.id,
+          storeOrder: beat.storeOrder,
+          createdAt: beat.createdAt,
           title: beat.title,
-          genre:
-            beat.genre ||
-            "Instrumental",
+          genre: "Instrumental",
           bpm: beat.bpm,
           key:
             beat.key ||
@@ -189,9 +187,7 @@ export async function GET(
       });
 
     // Directly returns the flat array expected by: Array.isArray(data)
-    return NextResponse.json(
-      formattedBeats
-    );
+    return NextResponse.json(formattedBeats, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error(
       "[BEATS_GET_ERROR]",
@@ -227,12 +223,7 @@ export async function POST(
         .trim() ||
       "Instrumental";
 
-    const bpm = body.bpm
-      ? parseInt(
-          body.bpm.toString(),
-          10
-        )
-      : null;
+    const bpm = parseBeatBpm(body.bpm);
 
     const key =
       body.key
@@ -357,6 +348,7 @@ export async function POST(
       newBeat
     );
   } catch (error) {
+    if (error instanceof InvalidBeatBpm) return NextResponse.json({ error: error.message }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     console.error(
       "[ADMIN_BEATS_POST_ERROR]",
       error

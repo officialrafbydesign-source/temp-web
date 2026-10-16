@@ -1,7 +1,7 @@
 "use client";
+import { compareBeatStoreOrder } from "@/lib/beatStoreOrder";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import PageBanner from "@/components/layout/PageBanner";
 import { useAudioStore, Track } from "@/lib/audioStore";
 import {
   Play,
@@ -105,6 +105,8 @@ function SafeImage({ src, alt, ...props }: any) {
   );
 }
 type Beat = {
+  storeOrder?: number;
+  createdAt?: string;
   id: string;
   title: string;
   genre: string;
@@ -181,11 +183,10 @@ export default function BeatStorePage() {
   const [loading, setLoading] = useState(true);
   // SEARCH & FILTER PARAMETERS
   const [search, setSearch] = useState("");
-  const [genreFilter, setGenreFilter] = useState("All");
   const [tagFilter, setTagFilter] = useState("All");
   const [keyFilter, setKeyFilter] = useState("All");
   const [maxBpm, setMaxBpm] = useState<number>(180);
-  const [sortBy, setSortBy] = useState<string>("newest");
+  const [sortBy, setSortBy] = useState<string>("store-order");
   // LIGHTBOX MODAL FOR CONTRACT IMAGES
   const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null);
   const playTrack = useAudioStore((state) => state.playTrack);
@@ -237,7 +238,6 @@ export default function BeatStorePage() {
     }
     fetchBeats();
   }, []);
-  const genres = ["All", ...Array.from(new Set(beats.map((beat) => beat.genre).filter(Boolean)))];
   const tags = [
     "All",
     ...Array.from(
@@ -276,16 +276,18 @@ export default function BeatStorePage() {
       const searchTerm = search.toLowerCase();
       const matchesSearch =
         beat.title.toLowerCase().includes(searchTerm) ||
-        (beat.genre || "").toLowerCase().includes(searchTerm) ||
         (beat.key || "").toLowerCase().includes(searchTerm) ||
         beatTags.some((tag) => tag.toLowerCase().includes(searchTerm));
-      const matchesGenre = genreFilter === "All" || beat.genre === genreFilter;
       const matchesTag = tagFilter === "All" || beatTags.includes(tagFilter);
       const matchesKey = keyFilter === "All" || beat.key === keyFilter;
       const matchesBpm = !beat.bpm || beat.bpm <= maxBpm;
-      return matchesSearch && matchesGenre && matchesTag && matchesKey && matchesBpm;
+      return matchesSearch && matchesTag && matchesKey && matchesBpm;
     });
-    if (sortBy === "price-low") {
+    if (sortBy === "store-order") {
+      list.sort(compareBeatStoreOrder);
+    } else if (sortBy === "newest") {
+      list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime() || a.id.localeCompare(b.id));
+    } else if (sortBy === "price-low") {
       list.sort((a, b) => (a.price || 0) - (b.price || 0));
     } else if (sortBy === "price-high") {
       list.sort((a, b) => (b.price || 0) - (a.price || 0));
@@ -295,7 +297,7 @@ export default function BeatStorePage() {
       list.sort((a, b) => (b.plays || 0) - (a.plays || 0));
     }
     return list;
-  }, [beats, search, genreFilter, tagFilter, keyFilter, maxBpm, sortBy]);
+  }, [beats, search, tagFilter, keyFilter, maxBpm, sortBy]);
   const handlePlayToggle = (beat: Beat) => {
     if (!beat.audioUrl) return;
     const isCurrentTrack = currentTrack?.id === beat.id || currentTrack?.url === beat.audioUrl;
@@ -305,7 +307,7 @@ export default function BeatStorePage() {
       const trackPayload: Track = {
         id: beat.id,
         title: beat.title,
-        subtitle: `${beat.bpm || 140} BPM â¢ ${beat.key || "C Minor"} â¢ ${beat.genre}`,
+        subtitle: `${beat.bpm || 140} BPM â¢ ${beat.key || "C Minor"} â¢ Instrumental`,
         url: beat.audioUrl,
         artwork: beat.frontCoverUrl || beat.artworkUrl || "/images/mascotmonored.png",
         type: "beat"
@@ -315,11 +317,10 @@ export default function BeatStorePage() {
   };
   const handleResetFilters = () => {
     setSearch("");
-    setGenreFilter("All");
     setTagFilter("All");
     setKeyFilter("All");
     setMaxBpm(180);
-    setSortBy("newest");
+    setSortBy("store-order");
   };
   return (
     <main
@@ -343,9 +344,19 @@ export default function BeatStorePage() {
           .font-raf {
             font-family: "RAF Font Demo", sans-serif;
           }
+          .section-title-panel {
+            background-color: #4b0505;
+          }
         `}
       </style>
-      <PageBanner title="Beat Store" description="Browse original instrumentals, preview beats and choose the licence that fits your release." />
+      {/* HEADER SECTION */}
+      <section className="section-title-panel w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] border-y border-red-500/30 shadow-2xl shadow-red-950/30">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 py-6 text-center">
+          <h1 className="font-raf text-2xl md:text-5xl lg:text-6xl tracking-wide uppercase text-white">
+            Beat Store
+          </h1>
+        </div>
+      </section>
       {/* MAIN CONTAINER */}
       <section className="w-full max-w-[1800px] mx-auto px-2.5 sm:px-4 md:px-8 space-y-4 md:space-y-8 pt-4 md:pt-8 relative z-10">
         {/* TOP SEARCH BAR & SORT HEADER */}
@@ -366,6 +377,7 @@ export default function BeatStorePage() {
               onChange={(e) => setSortBy(e.target.value)}
               className="w-full md:w-52 rounded-lg md:rounded-xl border border-zinc-800 md:border-2 bg-zinc-950 px-2.5 md:px-3 py-2 md:py-3 text-white font-mono text-[10px] md:text-xs font-bold uppercase outline-none focus:border-red-600 cursor-pointer"
             >
+              <option value="store-order">Store order</option>
               <option value="newest">Latest Releases</option>
               <option value="popular">Most Popular</option>
               <option value="price-low">Price: Low to High</option>
@@ -469,15 +481,7 @@ export default function BeatStorePage() {
                 <RotateCcw className="w-3 h-3" /> Reset
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              <select
-                value={genreFilter}
-                onChange={(e) => setGenreFilter(e.target.value)}
-                className="min-w-0 rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-1.5 text-white font-mono text-[9px] font-bold uppercase outline-none focus:border-red-600"
-                aria-label="Filter by genre"
-              >
-                {genres.map((g) => <option key={g} value={g}>{g}</option>)}
-              </select>
+            <div className="grid grid-cols-2 gap-1.5">
               <select
                 value={tagFilter}
                 onChange={(e) => setTagFilter(e.target.value)}
@@ -525,32 +529,6 @@ export default function BeatStorePage() {
               >
                 <RotateCcw className="w-3 h-3" /> Reset
               </button>
-            </div>
-            {/* GENRES FILTER */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-mono font-black uppercase tracking-widest text-zinc-400 block">
-                Genre
-              </span>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {genres.map((g) => {
-                  const isSelected = genreFilter === g;
-                  return (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setGenreFilter(g)}
-                      className={`w-full text-left px-3 py-2 rounded-lg font-mono text-xs font-bold uppercase transition flex items-center justify-between ${
-                        isSelected
-                          ? "bg-red-600 text-white border border-black shadow"
-                          : "bg-zinc-950/80 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-zinc-900"
-                      }`}
-                    >
-                      <span>{g}</span>
-                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
             {/* TAG FILTER */}
             <div className="space-y-2 border-t border-zinc-800/80 pt-4">
@@ -712,7 +690,7 @@ export default function BeatStorePage() {
                         <div>
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-red-500 font-mono truncate">
-                              {beat.genre || "INSTRUMENTAL"}
+                              {(Array.isArray(beat.tags) ? beat.tags.join(" · ") : beat.tags) || "INSTRUMENTAL"}
                             </p>
                             {isTrackPlaying && (
                               <span className="text-[7px] sm:text-[9px] uppercase font-mono px-1.5 sm:px-2 py-0.5 bg-red-600/20 text-red-500 rounded border border-red-600/40 animate-pulse font-bold">

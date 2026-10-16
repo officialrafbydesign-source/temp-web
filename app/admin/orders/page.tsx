@@ -11,6 +11,8 @@ import Link from "next/link";
 
 import AdminLayout from "../components/AdminLayout";
 
+import OrderReportingControl from "../components/OrderReportingControl";
+
 type OrderStatus =
   | "pending"
   | "paid"
@@ -63,6 +65,7 @@ type OrderItem = {
 };
 
 type Order = {
+  excludedFromReports?: boolean;
   id: string;
   email?: string | null;
   amount: number;
@@ -1053,6 +1056,8 @@ export default function AdminOrdersPage() {
                                   Edit
                                 </button>
                               )}
+                              <OrderReportingControl id={order.id} excluded={!!order.excludedFromReports}
+                                onChange={(excluded) => setOrders((current) => current.map((row) => row.id === order.id ? { ...row, excludedFromReports: excluded } : row))} />
                             </td>
                           </tr>
 

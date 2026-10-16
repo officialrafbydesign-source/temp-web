@@ -10,6 +10,9 @@ import Link from "next/link";
 
 import AdminLayout from "../components/AdminLayout";
 
+import ReportingPeriodSelect from "../components/ReportingPeriodSelect";
+import { includedInReports, type ReportingPeriod } from "@/lib/adminReporting";
+
 type AdminStats = {
   totalOrders: number;
   totalRevenue: number;
@@ -29,6 +32,7 @@ type OrderItem = {
 };
 
 type AdminOrder = {
+  excludedFromReports?: boolean;
   id: string;
   email: string | null;
   amount: number;
@@ -100,6 +104,7 @@ function getStatusClasses(
 }
 
 export default function DashboardPage() {
+  const [period, setPeriod] = useState<ReportingPeriod>("current");
   const [
     stats,
     setStats,
@@ -130,6 +135,7 @@ export default function DashboardPage() {
       true;
 
     async function loadDashboard() {
+      setLoading(true);
       try {
         setError("");
 
@@ -139,7 +145,7 @@ export default function DashboardPage() {
         ] =
           await Promise.all([
             fetch(
-              "/api/admin/stats",
+              `/api/admin/stats?period=${period}`,
               {
                 credentials:
                   "include",
@@ -232,17 +238,18 @@ export default function DashboardPage() {
       isMounted =
         false;
     };
-  }, []);
+  }, [period]);
+
+  const reportOrders = useMemo(() => orders.filter((order) => includedInReports(order, period)), [orders, period]);
 
   const orderCounts =
     useMemo(() => {
       let beats = 0;
       let music = 0;
       let physical = 0;
-      let awaitingAction =
-        0;
+      const awaitingAction = orders.filter((order) => !order.excludedFromReports && ["paid", "processing"].includes(order.status)).length;
 
-      orders.forEach(
+      reportOrders.forEach(
         (order) => {
           const types =
             new Set(
@@ -291,15 +298,7 @@ export default function DashboardPage() {
             physical += 1;
           }
 
-          if (
-            order.status ===
-              "paid" ||
-            order.status ===
-              "processing"
-          ) {
-            awaitingAction +=
-              1;
-          }
+
         }
       );
 
@@ -309,16 +308,17 @@ export default function DashboardPage() {
         physical,
         awaitingAction,
       };
-    }, [orders]);
+    }, [orders, reportOrders]);
 
   const recentOrders =
-    orders.slice(
+    reportOrders.slice(
       0,
       10
     );
 
   return (
     <AdminLayout active="dashboard">
+        <ReportingPeriodSelect value={period} onChange={setPeriod} />
       <div className="space-y-8 [font-family:Arial,Helvetica,sans-serif]">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -333,7 +333,7 @@ export default function DashboardPage() {
             <p className="mt-2 text-sm text-zinc-600">
               Confirmed sales,
               downloads and
-              fulfilment activity.
+              fulfilment activity. Outstanding fulfilment includes all dates.
             </p>
           </div>
 

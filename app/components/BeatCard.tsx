@@ -6,7 +6,7 @@ import { useState } from "react";
 type Beat = {
   id: string;
   title: string;
-  genre?: string;
+  tags?: string[] | string | null;
   audioUrl?: string | null;
 };
 
@@ -48,7 +48,7 @@ export default function BeatCard({ beat, index }: BeatCardProps) {
       const trackPayload: Track = {
         id: beat.id,
         title: beat.title,
-        subtitle: beat.genre || "Uncategorised Beat",
+        subtitle: "Instrumental",
         url: beat.audioUrl,
         artwork: mascot,
         type: "beat"
@@ -85,7 +85,7 @@ export default function BeatCard({ beat, index }: BeatCardProps) {
               {beat.title}
             </h3>
             <p className="text-red-200 text-sm font-mono mt-0.5">
-              {beat.genre || "Uncategorised"}
+              {(Array.isArray(beat.tags) ? beat.tags.join(" · ") : beat.tags) || "Instrumental"}
             </p>
           </div>
 

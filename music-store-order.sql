@@ -1,0 +1,2 @@
+-- Retired: this update does not order music releases.
+-- Run beat-store-order.sql instead. No undo is needed if the earlier music SQL was already run.

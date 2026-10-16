@@ -11,7 +11,9 @@ import {
 export const dynamic =
   "force-dynamic";
 
-export async function GET() {
+import { reportingPeriod } from "@/lib/adminReporting";
+
+export async function GET(request: Request) {
   const authorization =
     await authorizeAdminApi();
 
@@ -23,7 +25,7 @@ export async function GET() {
 
   try {
     const analytics =
-      await getAdminAnalytics();
+      await getAdminAnalytics(reportingPeriod(new URL(request.url).searchParams.get("period")));
 
     return NextResponse.json(
       analytics,

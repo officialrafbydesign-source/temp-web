@@ -85,12 +85,13 @@ model AuthRateLimit {
 //////////////////////
 
 model Beat {
+  storeOrder Int @default(1000000)
   isPublished Boolean @default(true)
   deletedAt DateTime?
   id          String  @id @default(cuid())
   title       String
   genre       String?
-  bpm         Int?
+  bpm         Float?
   key         String?
   description String?
 
@@ -432,6 +433,7 @@ model Order {
   licenseId   String?
   variantId   String?
 
+  excludedFromReports Boolean @default(false)
   status   OrderStatus @default(pending)
   quantity Int?        @default(1)
 

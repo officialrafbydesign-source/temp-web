@@ -1,6 +1,8 @@
 "use client";
 
-import CatalogueActions from "../components/CatalogueActions";
+import BeatStoreOrder from "../components/BeatStoreOrder";
+import InventoryPagination from "../components/InventoryPagination";
+import BeatInventoryItem, { type BeatInventoryTrack } from "../components/BeatInventoryItem";
 import CatalogueTagsInput from "../components/CatalogueTagsInput";
 import { normaliseTags } from "@/lib/catalogueTags";
 
@@ -15,26 +17,7 @@ import {
 import Script from "next/script";
 import AdminLayout from "../components/AdminLayout";
 
-type BeatTrack = {
-  isPublished?: boolean;
-  isAvailable?: boolean;
-  id: string;
-  title: string;
-  bpm: number;
-  genre: string;
-  freeDownload: boolean;
-  musicalKey: string;
-  tags: string[];
-  priceStandard: number;
-  pricePremium: number;
-  mp3Url: string;
-  zipUrl: string;
-  standardFileUrl: string;
-  artworkUrl?: string;
-  backgroundUrl?: string;
-  plays: number;
-  downloads: number;
-};
+type BeatTrack = BeatInventoryTrack;
 
 type BeatTelemetry = {
   topPlayedTitle: string;
@@ -47,7 +30,6 @@ type BeatTelemetry = {
 type SortField =
   | "title"
   | "bpm"
-  | "genre"
   | "musicalKey"
   | "priceStandard"
   | "pricePremium"
@@ -162,6 +144,15 @@ export default function AdminBeatsPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const itemsPerPage = 24;
+  const [inventoryView, setInventoryView] = useState<"compact" | "expanded">("compact");
+  const [expandedBeats, setExpandedBeats] = useState<Record<string, boolean>>({});
+  const [inventorySearch, setInventorySearch] = useState("");
+
+  function changeInventoryView(view: "compact" | "expanded") {
+    setInventoryView(view);
+    setExpandedBeats({});
+  }
+
 
   /* =========================================================
      SINGLE TRACK FORM
@@ -170,7 +161,6 @@ export default function AdminBeatsPage() {
   const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [bpm, setBpm] = useState("");
-  const [genre, setGenre] = useState("");
   const [freeDownload, setFreeDownload] =
     useState(false);
 
@@ -521,21 +511,6 @@ export default function AdminBeatsPage() {
      SORTING
   ========================================================= */
 
-  const handleSort = (
-    field: SortField
-  ) => {
-    if (sortField === field) {
-      setSortOrder(
-        sortOrder === "asc"
-          ? "desc"
-          : "asc"
-      );
-    } else {
-      setSortField(field);
-      setSortOrder("asc");
-    }
-  };
-
   /* =========================================================
      INLINE EDITING
   ========================================================= */
@@ -682,7 +657,7 @@ export default function AdminBeatsPage() {
     setIntakeMode("single");
     setTitle(`${beat.title} (copy)`);
     setBpm(String(beat.bpm || ""));
-    setGenre(beat.genre || "");
+
     setFreeDownload(beat.freeDownload);
     setMusicalKey(beat.musicalKey || "");
     setTags([...(beat.tags || [])]);
@@ -700,7 +675,7 @@ export default function AdminBeatsPage() {
     setDuplicateSourceId(null);
     setTitle("");
     setBpm("");
-    setGenre("");
+
     setFreeDownload(false);
     setMusicalKey("");
     setTags([]);
@@ -725,10 +700,10 @@ export default function AdminBeatsPage() {
       title,
 
       bpm: bpm
-        ? parseInt(bpm, 10)
+        ? Number(bpm)
         : 0,
 
-      genre,
+      genre: "Instrumental",
 
       freeDownload,
 
@@ -800,7 +775,7 @@ export default function AdminBeatsPage() {
       setDuplicateSourceId(null);
       setTitle("");
       setBpm("");
-      setGenre("");
+
       setFreeDownload(false);
       setMusicalKey("");
       setTags([]);
@@ -851,9 +826,7 @@ export default function AdminBeatsPage() {
             Number(item.bpm) ||
             120,
 
-          genre:
-            item.genre ||
-            "Hip Hop",
+          genre: "Instrumental",
 
           freeDownload:
             Boolean(
@@ -966,15 +939,9 @@ export default function AdminBeatsPage() {
             row["title"] ||
             "Untitled",
 
-          bpm:
-            parseInt(
-              row["bpm"],
-              10
-            ) || 120,
+          bpm: Number(row["bpm"]) || 120,
 
-          genre:
-            row["genre"] ||
-            "Trap",
+          genre: "Instrumental",
 
           freeDownload:
             row[
@@ -1159,7 +1126,7 @@ export default function AdminBeatsPage() {
 
   const sortedBeats = [
     ...beats,
-  ].sort((a, b) => {
+  ].filter((beat) => !inventorySearch.trim() || [beat.title, beat.musicalKey, ...(beat.tags || [])].some((value) => value.toLowerCase().includes(inventorySearch.trim().toLowerCase()))).sort((a, b) => {
     let aValue: any =
       a[sortField] ?? "";
 
@@ -1199,12 +1166,13 @@ export default function AdminBeatsPage() {
         itemsPerPage
     ) || 1;
 
+  const visiblePage = Math.min(currentPage, totalPages);
   const currentPagedBeats =
     sortedBeats.slice(
-      (currentPage - 1) *
+      (visiblePage - 1) *
         itemsPerPage,
 
-      currentPage *
+      visiblePage *
         itemsPerPage
     );
 
@@ -1240,23 +1208,6 @@ export default function AdminBeatsPage() {
       );
     }
   }
-
-  const renderSortArrow = (
-    field: SortField
-  ) => {
-    if (sortField !== field) {
-      return (
-        <span className="opacity-30">
-          {" "}
-          ↕
-        </span>
-      );
-    }
-
-    return sortOrder === "asc"
-      ? " ↑"
-      : " ↓";
-  };
 
   /* =========================================================
      UI
@@ -1345,7 +1296,7 @@ export default function AdminBeatsPage() {
                   <button type="button" disabled={isSubmitting} onClick={cancelBeatCopy} className="mt-2 font-bold underline disabled:opacity-50">Cancel Copy</button>
                 </div>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <input
                   type="text"
                   value={title}
@@ -1361,6 +1312,8 @@ export default function AdminBeatsPage() {
 
                 <input
                   type="number"
+                  step="any"
+                  min="0"
                   value={bpm}
                   onChange={(e) =>
                     setBpm(
@@ -1371,18 +1324,6 @@ export default function AdminBeatsPage() {
                   className="bg-zinc-50 border p-3 rounded-lg text-sm"
                 />
 
-                <input
-                  type="text"
-                  value={genre}
-                  onChange={(e) =>
-                    setGenre(
-                      e.target.value
-                    )
-                  }
-                  placeholder="Genre *"
-                  className="bg-zinc-50 border p-3 rounded-lg text-sm"
-                  required
-                />
 
                 <input
                   type="text"
@@ -1976,675 +1917,59 @@ export default function AdminBeatsPage() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse font-medium">
-              <thead>
-                <tr className="bg-zinc-100 border-b text-zinc-500 uppercase tracking-wider text-[10px]">
-                  <th className="p-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={
-                        allPageSelected
-                      }
-                      onChange={
-                        toggleCurrentPage
-                      }
-                      title="Select current page"
-                    />
-                  </th>
-
-                  <th className="p-3 text-center">
-                    Audio
-                  </th>
-
-                  <th className="p-3 text-center">
-                    Card
-                  </th>
-
-                  <th
-                    onClick={() =>
-                      handleSort(
-                        "title"
-                      )
-                    }
-                    className="p-3 cursor-pointer"
-                  >
-                    Title{" "}
-                    {renderSortArrow(
-                      "title"
-                    )}
-                  </th>
-
-                  <th
-                    onClick={() =>
-                      handleSort("bpm")
-                    }
-                    className="p-3 cursor-pointer"
-                  >
-                    BPM{" "}
-                    {renderSortArrow(
-                      "bpm"
-                    )}
-                  </th>
-
-                  <th
-                    onClick={() =>
-                      handleSort(
-                        "genre"
-                      )
-                    }
-                    className="p-3 cursor-pointer"
-                  >
-                    Genre{" "}
-                    {renderSortArrow(
-                      "genre"
-                    )}
-                  </th>
-
-                  <th
-                    onClick={() =>
-                      handleSort(
-                        "musicalKey"
-                      )
-                    }
-                    className="p-3 cursor-pointer"
-                  >
-                    Key{" "}
-                    {renderSortArrow(
-                      "musicalKey"
-                    )}
-                  </th>
-
-                  <th className="p-3">Tags</th>
-
-                  <th
-                    onClick={() =>
-                      handleSort(
-                        "priceStandard"
-                      )
-                    }
-                    className="p-3 cursor-pointer"
-                  >
-                    Leasing{" "}
-                    {renderSortArrow(
-                      "priceStandard"
-                    )}
-                  </th>
-
-                  <th
-                    onClick={() =>
-                      handleSort(
-                        "pricePremium"
-                      )
-                    }
-                    className="p-3 cursor-pointer"
-                  >
-                    Exclusive{" "}
-                    {renderSortArrow(
-                      "pricePremium"
-                    )}
-                  </th>
-
-                  <th className="p-3 text-center">
-                    Plays
-                  </th>
-
-                  <th className="p-3 text-center">
-                    Downloads
-                  </th>
-
-                  <th className="p-3">
-                    Card Assets / Downloads
-                  </th>
-                  <th className="p-3">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-zinc-200">
-                {loading ? (
-                  <tr>
-                    <td
-                      colSpan={14}
-                      className="p-8 text-center text-zinc-400"
-                    >
-                      Loading
-                      catalogue...
-                    </td>
-                  </tr>
-                ) : currentPagedBeats.length ===
-                  0 ? (
-                  <tr>
-                    <td
-                      colSpan={14}
-                      className="p-8 text-center text-zinc-400"
-                    >
-                      No beats found.
-                    </td>
-                  </tr>
-                ) : (
-                  currentPagedBeats.map(
-                    (beat) => {
-                      const selected =
-                        isSelected(
-                          beat.id
-                        );
-
-                      const inputClass = `border rounded px-2 py-1 text-xs ${
-                        selected
-                          ? "bg-white border-zinc-400 text-black"
-                          : "bg-zinc-100 border-transparent text-zinc-400"
-                      }`;
-
-                      return (
-                        <tr
-                          key={beat.id}
-                          className={
-                            selected
-                              ? "bg-emerald-50"
-                              : "hover:bg-zinc-50"
-                          }
-                        >
-                          {/* SELECT */}
-
-                          <td className="p-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={
-                                selected
-                              }
-                              onChange={() =>
-                                toggleSelected(
-                                  beat.id
-                                )
-                              }
-                              className="w-4 h-4"
-                            />
-                          </td>
-
-                          {/* AUDIO */}
-
-                          <td className="p-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                togglePlayAudio(
-                                  beat
-                                )
-                              }
-                              className={`w-8 h-8 rounded-full font-bold ${
-                                currentPlayingId ===
-                                  beat.id &&
-                                isPlaying
-                                  ? "bg-amber-500 text-white"
-                                  : "bg-zinc-100"
-                              }`}
-                            >
-                              {currentPlayingId ===
-                                beat.id &&
-                              isPlaying
-                                ? "⏸"
-                                : "▶"}
-                            </button>
-                          </td>
-
-                          {/* PREVIEW */}
-
-                          <td className="p-3">
-                            <BeatCardPreview
-                              artworkUrl={
-                                beat.artworkUrl
-                              }
-                              backgroundUrl={
-                                beat.backgroundUrl
-                              }
-                              title={
-                                beat.title
-                              }
-                            />
-                          </td>
-
-                          {/* TITLE */}
-
-                          <td className="p-3">
-                            <input
-                              disabled={
-                                !selected
-                              }
-                              value={
-                                beat.title
-                              }
-                              onChange={(e) =>
-                                handleBulkChange(
-                                  beat.id,
-                                  "title",
-                                  e.target
-                                    .value
-                                )
-                              }
-                              className={`${inputClass} w-40 font-semibold`}
-                            />
-                          </td>
-
-                          {/* BPM */}
-
-                          <td className="p-3">
-                            <input
-                              disabled={
-                                !selected
-                              }
-                              type="number"
-                              value={
-                                beat.bpm ||
-                                ""
-                              }
-                              onChange={(e) =>
-                                handleBulkChange(
-                                  beat.id,
-                                  "bpm",
-                                  parseInt(
-                                    e
-                                      .target
-                                      .value,
-                                    10
-                                  ) || 0
-                                )
-                              }
-                              className={`${inputClass} w-16`}
-                            />
-                          </td>
-
-                          {/* GENRE */}
-
-                          <td className="p-3">
-                            <input
-                              disabled={
-                                !selected
-                              }
-                              value={
-                                beat.genre ||
-                                ""
-                              }
-                              onChange={(e) =>
-                                handleBulkChange(
-                                  beat.id,
-                                  "genre",
-                                  e.target
-                                    .value
-                                )
-                              }
-                              className={`${inputClass} w-28`}
-                            />
-                          </td>
-
-                          {/* KEY */}
-
-                          <td className="p-3">
-                            <input
-                              disabled={
-                                !selected
-                              }
-                              value={
-                                beat.musicalKey ||
-                                ""
-                              }
-                              onChange={(e) =>
-                                handleBulkChange(
-                                  beat.id,
-                                  "musicalKey",
-                                  e.target
-                                    .value
-                                )
-                              }
-                              className={`${inputClass} w-24`}
-                            />
-                          </td>
-
-                          {/* TAGS */}
-
-                          <td className="p-3 min-w-[240px]">
-                            <CatalogueTagsInput
-                              label={`Tags for ${beat.title}`}
-                              value={beat.tags || []}
-                              onChange={(nextTags) => handleBulkChange(beat.id, "tags", nextTags)}
-                              existingTags={existingTags}
-                              disabled={!selected}
-                            />
-                          </td>
-
-                          {/* LEASING */}
-
-                          <td className="p-3">
-                            <input
-                              disabled={
-                                !selected
-                              }
-                              type="number"
-                              step="0.01"
-                              value={
-                                beat.priceStandard
-                              }
-                              onChange={(e) =>
-                                handleBulkChange(
-                                  beat.id,
-                                  "priceStandard",
-                                  parseFloat(
-                                    e
-                                      .target
-                                      .value
-                                  ) || 0
-                                )
-                              }
-                              className={`${inputClass} w-20`}
-                            />
-                          </td>
-
-                          {/* PREMIUM */}
-
-                          <td className="p-3">
-                            <input
-                              disabled={
-                                !selected
-                              }
-                              type="number"
-                              step="0.01"
-                              value={
-                                beat.pricePremium
-                              }
-                              onChange={(e) =>
-                                handleBulkChange(
-                                  beat.id,
-                                  "pricePremium",
-                                  parseFloat(
-                                    e
-                                      .target
-                                      .value
-                                  ) || 0
-                                )
-                              }
-                              className={`${inputClass} w-20`}
-                            />
-                          </td>
-
-                          <td className="p-3 text-center font-mono">
-                            {beat.plays ||
-                              0}
-                          </td>
-
-                          <td className="p-3 text-center font-mono">
-                            {beat.downloads ||
-                              0}
-                          </td>
-
-                          {/* ASSETS */}
-
-                          <td className="p-3 min-w-[190px]">
-                            <div className="space-y-2">
-                              <label className="block text-[10px] font-bold">
-                                Public preview — tagged MP3 URL
-                                <input
-                                  disabled={!selected}
-                                  type="url"
-                                  value={beat.mp3Url || ""}
-                                  onChange={(e) => handleBulkChange(beat.id, "mp3Url", e.target.value)}
-                                  placeholder="https://.../tagged-preview.mp3"
-                                  className={`${inputClass} w-full font-mono font-normal`}
-                                />
-                              </label>
-                              <label className="block text-[10px] font-bold">
-                                Leasing License — untagged MP3 / WAV file path
-                              <input
-                                disabled={
-                                  !selected
-                                }
-                                type="text"
-                                value={
-                                  beat.standardFileUrl ||
-                                  ""
-                                }
-                                onChange={(e) =>
-                                  handleBulkChange(
-                                    beat.id,
-                                    "standardFileUrl",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="beats/example/untagged.mp3"
-                                className={`${inputClass} w-full font-mono`}
-                              />
-                              </label>
-
-                              <label className="block text-[10px] font-bold">
-                                Exclusive License — ZIP file path
-                              <input
-                                disabled={
-                                  !selected
-                                }
-                                type="text"
-                                value={
-                                  beat.zipUrl ||
-                                  ""
-                                }
-                                onChange={(e) =>
-                                  handleBulkChange(
-                                    beat.id,
-                                    "zipUrl",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="beats/example/stems.zip"
-                                className={`${inputClass} w-full font-mono`}
-                              />
-                              </label>
-
-                              <label className="block text-[10px] font-bold">
-                                Foreground image URL
-                                <input
-                                  disabled={!selected}
-                                  type="url"
-                                  value={beat.artworkUrl || ""}
-                                  onChange={(e) => handleBulkChange(beat.id, "artworkUrl", e.target.value)}
-                                  placeholder="https://res.cloudinary.com/..."
-                                  className={`${inputClass} w-full font-mono font-normal`}
-                                />
-                              </label>
-
-                              <label className="block text-[10px] font-bold">
-                                Background image URL
-                                <input
-                                  disabled={!selected}
-                                  type="url"
-                                  value={beat.backgroundUrl || ""}
-                                  onChange={(e) => handleBulkChange(beat.id, "backgroundUrl", e.target.value)}
-                                  placeholder="https://res.cloudinary.com/..."
-                                  className={`${inputClass} w-full font-mono font-normal`}
-                                />
-                              </label>
-
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  disabled={
-                                    !selected
-                                  }
-                                  onClick={() =>
-                                    openCloudinaryMediaLibrary(
-                                      (
-                                        url
-                                      ) =>
-                                        handleBulkChange(
-                                          beat.id,
-                                          "artworkUrl",
-                                          url
-                                        )
-                                    )
-                                  }
-                                  className="flex-1 bg-blue-600 text-white rounded px-2 py-1 text-[10px] font-bold disabled:opacity-30"
-                                >
-                                  Choose Front
-                                </button>
-
-                                <button
-                                  type="button"
-                                  disabled={
-                                    !selected
-                                  }
-                                  onClick={() =>
-                                    openCloudinaryUploadWidget(
-                                      (
-                                        url
-                                      ) =>
-                                        handleBulkChange(
-                                          beat.id,
-                                          "artworkUrl",
-                                          url
-                                        )
-                                    )
-                                  }
-                                  className="bg-blue-100 px-2 rounded disabled:opacity-30"
-                                >
-                                  ☁️
-                                </button>
-                              </div>
-
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  disabled={
-                                    !selected
-                                  }
-                                  onClick={() =>
-                                    openCloudinaryMediaLibrary(
-                                      (
-                                        url
-                                      ) =>
-                                        handleBulkChange(
-                                          beat.id,
-                                          "backgroundUrl",
-                                          url
-                                        )
-                                    )
-                                  }
-                                  className="flex-1 bg-purple-600 text-white rounded px-2 py-1 text-[10px] font-bold disabled:opacity-30"
-                                >
-                                  Choose BG
-                                </button>
-
-                                <button
-                                  type="button"
-                                  disabled={
-                                    !selected
-                                  }
-                                  onClick={() =>
-                                    openCloudinaryUploadWidget(
-                                      (
-                                        url
-                                      ) =>
-                                        handleBulkChange(
-                                          beat.id,
-                                          "backgroundUrl",
-                                          url
-                                        )
-                                    )
-                                  }
-                                  className="bg-purple-100 px-2 rounded disabled:opacity-30"
-                                >
-                                  ☁️
-                                </button>
-                              </div>
-
-                              {(beat.artworkUrl ||
-                                beat.backgroundUrl) &&
-                                selected && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      handleBulkChange(
-                                        beat.id,
-                                        "artworkUrl",
-                                        ""
-                                      );
-
-                                      handleBulkChange(
-                                        beat.id,
-                                        "backgroundUrl",
-                                        ""
-                                      );
-                                    }}
-                                    className="text-[9px] text-red-600 underline"
-                                  >
-                                    Clear Card
-                                    Images
-                                  </button>
-                                )}
-                            </div>
-                          </td>
-                          <td className="p-3 align-top">
-                            <button type="button" disabled={isSubmitting} onClick={() => handleDuplicateBeat(beat)} className="rounded bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50">Duplicate</button>
-                            <CatalogueActions kind="beats" id={beat.id} isPublished={beat.isPublished} available={beat.isAvailable !== false} disabled={isSubmitting}
-                              onVisibilityChange={(isPublished) => setBeats((items) => items.map((item) => item.id === beat.id ? { ...item, isPublished } : item))}
-                              onDeleted={() => { setBeats((items) => items.filter((item) => item.id !== beat.id)); setSelectedIds((ids) => ids.filter((id) => id !== beat.id)); }} />
-                          </td>
-                        </tr>
-                      );
-                    }
-                  )
-                )}
-              </tbody>
-            </table>
+          <div className="p-4">
+            <BeatStoreOrder beats={beats} disabled={loading || isSubmitting} onSaved={(items) => {
+              const positions = new Map(items.map((item) => [item.id, item.storeOrder]));
+              setBeats((current) => current.map((beat) => positions.has(beat.id) ? { ...beat, storeOrder: positions.get(beat.id) } : beat));
+            }} />
           </div>
-
-          {/* PAGINATION */}
-
-          {totalPages > 1 && (
-            <div className="p-4 bg-zinc-50 border-t flex items-center justify-between">
-              <span className="text-xs text-zinc-500">
-                Page {currentPage} of{" "}
-                {totalPages}
-              </span>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCurrentPage(
-                      (page) =>
-                        Math.max(
-                          page - 1,
-                          1
-                        )
-                    )
-                  }
-                  disabled={
-                    currentPage === 1
-                  }
-                  className="px-3 py-2 text-xs font-bold bg-white border rounded disabled:opacity-40"
-                >
-                  Previous
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCurrentPage(
-                      (page) =>
-                        Math.min(
-                          page + 1,
-                          totalPages
-                        )
-                    )
-                  }
-                  disabled={
-                    currentPage ===
-                    totalPages
-                  }
-                  className="px-3 py-2 text-xs font-bold bg-white border rounded disabled:opacity-40"
-                >
-                  Next
-                </button>
-              </div>
+          <div className="flex flex-wrap items-end gap-3 border-b border-zinc-200 p-4">
+            <label className="min-w-0 flex-1 basis-48 text-xs font-bold">Find a beat
+              <input type="search" value={inventorySearch} onChange={(event) => { setInventorySearch(event.target.value); setCurrentPage(1); }}
+                placeholder="Search title, tag or key" className="mt-1 w-full rounded-lg border border-zinc-300 p-2 text-sm font-normal" />
+            </label>
+            <label className="text-xs font-bold">Sort by
+              <select value={sortField} onChange={(event) => { setSortField(event.target.value as SortField); setCurrentPage(1); }} className="ml-2 rounded-lg border border-zinc-300 p-2 text-sm">
+                <option value="title">Title</option><option value="bpm">BPM</option><option value="musicalKey">Key</option>
+                <option value="priceStandard">Leasing price</option><option value="pricePremium">Exclusive price</option>
+                <option value="plays">Plays</option><option value="downloads">Downloads</option>
+              </select>
+            </label>
+            <button type="button" onClick={() => setSortOrder((order) => order === "asc" ? "desc" : "asc")} className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-bold">{sortOrder === "asc" ? "Ascending ↑" : "Descending ↓"}</button>
+            <div className="flex gap-1 rounded-lg bg-zinc-100 p-1" role="group" aria-label="Beat inventory view">
+              {(["compact", "expanded"] as const).map((view) => <button key={view} type="button" aria-pressed={inventoryView === view} onClick={() => changeInventoryView(view)}
+                className={`rounded-md px-3 py-2 text-xs font-bold ${inventoryView === view ? "bg-zinc-900 text-white" : "text-zinc-700"}`}>{view === "compact" ? "Compact view" : "Expanded view"}</button>)}
             </div>
-          )}
+          </div>
+          <p className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500">{sortedBeats.length} matching beat(s). Tick a beat to edit, or use Edit / Expand. Changing views keeps your unsaved edits.</p>
+          {loading ? <p className="p-6 text-sm text-zinc-500">Loading catalogue...</p>
+            : currentPagedBeats.length === 0 ? <p className="p-6 text-sm text-zinc-500">No beats found.</p>
+            : currentPagedBeats.map((beat) => {
+              const expanded = expandedBeats[beat.id] ?? inventoryView === "expanded";
+              return <BeatInventoryItem key={beat.id} beat={beat} selected={isSelected(beat.id)} expanded={expanded}
+                busy={isSubmitting} selectedCount={selectedIds.length} existingTags={existingTags}
+                playing={currentPlayingId === beat.id && isPlaying}
+                preview={<BeatCardPreview artworkUrl={beat.artworkUrl} backgroundUrl={beat.backgroundUrl} title={beat.title} />}
+                onSelect={() => toggleSelected(beat.id)} onPlay={() => togglePlayAudio(beat)}
+                onExpand={() => {
+                  setExpandedBeats((items) => ({ ...items, [beat.id]: !expanded }));
+                  if (!expanded) setSelectedIds((ids) => ids.includes(beat.id) ? ids : [...ids, beat.id]);
+                }}
+                onChange={(field, value) => handleBulkChange(beat.id, field, value)}
+                onChooseImage={(field, upload) => (upload ? openCloudinaryUploadWidget : openCloudinaryMediaLibrary)((url) => handleBulkChange(beat.id, field, url))}
+                onSave={saveSelectedChangesToServer} onDuplicate={() => handleDuplicateBeat(beat)}
+                onVisibilityChange={(isPublished) => setBeats((items) => items.map((item) => item.id === beat.id ? { ...item, isPublished } : item))}
+                onDeleted={() => { setBeats((items) => items.filter((item) => item.id !== beat.id)); setSelectedIds((ids) => ids.filter((id) => id !== beat.id)); }} />;
+            })}
+
+          <InventoryPagination currentPage={visiblePage} totalPages={totalPages} totalItems={sortedBeats.length}
+            pageSize={itemsPerPage} onChange={setCurrentPage} />
+
         </div>
+        {selectedIds.length > 0 && <div className="sticky bottom-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-white p-3 shadow-xl">
+          <p className="text-sm font-bold">{selectedIds.length} beat(s) selected</p>
+          <button type="button" onClick={saveSelectedChangesToServer} disabled={isSubmitting} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{isSubmitting ? "Saving..." : `Save selected changes (${selectedIds.length})`}</button>
+        </div>}
       </div>
     </AdminLayout>
   );

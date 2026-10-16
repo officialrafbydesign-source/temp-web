@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { REVENUE_STATUSES, reportingOrderWhere, reportingDateWhere, type ReportingPeriod } from "@/lib/adminReporting";
 
-export async function getAdminAnalytics() {
+export async function getAdminAnalytics(period: ReportingPeriod = "current") {
+  const ordersWhere = reportingOrderWhere(period);
+  const downloadsWhere = { ...reportingDateWhere(period), type: { not: "play", mode: "insensitive" as const } };
   const [
     totalOrders,
     totalRevenue,
@@ -8,22 +11,24 @@ export async function getAdminAnalytics() {
     recentDownloads,
     topBeats,
   ] = await Promise.all([
-    prisma.order.count(),
+    prisma.order.count({ where: { ...ordersWhere, status: { in: [...REVENUE_STATUSES] } } }),
 
     prisma.order.aggregate({
       _sum: { amount: true },
-      where: { status: "paid" },
+      where: { ...ordersWhere, status: { in: [...REVENUE_STATUSES] } },
     }),
 
-    prisma.downloadLog.count(),
+    prisma.downloadLog.count({ where: downloadsWhere }),
 
     prisma.downloadLog.findMany({
+      where: downloadsWhere,
       orderBy: { createdAt: "desc" },
       take: 10,
       include: { beat: true },
     }),
 
     prisma.downloadLog.groupBy({
+      where: downloadsWhere,
       by: ["beatId"],
       _count: { beatId: true },
       orderBy: {

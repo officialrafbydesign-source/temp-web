@@ -17,12 +17,7 @@ import {
 export const dynamic =
   "force-dynamic";
 
-const REVENUE_STATUSES: OrderStatus[] = [
-  "paid",
-  "processing",
-  "shipped",
-  "delivered",
-];
+import { REVENUE_STATUSES, reportingPeriod, reportingOrderWhere, reportingDateWhere } from "@/lib/adminReporting";
 
 function jsonResponse(
   body: unknown,
@@ -41,7 +36,7 @@ function jsonResponse(
   );
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const authorization =
     await authorizeAdminApi();
 
@@ -52,6 +47,9 @@ export async function GET() {
   }
 
   try {
+    const period = reportingPeriod(new URL(request.url).searchParams.get("period"));
+    const ordersWhere = reportingOrderWhere(period);
+    const dateWhere = reportingDateWhere(period);
     const [
       confirmedOrders,
       revenue,
@@ -63,18 +61,20 @@ export async function GET() {
       await Promise.all([
         prisma.order.count({
           where: {
+            ...ordersWhere,
             status: {
               in:
-                REVENUE_STATUSES,
+                [...REVENUE_STATUSES] as OrderStatus[],
             },
           },
         }),
 
         prisma.order.aggregate({
           where: {
+            ...ordersWhere,
             status: {
               in:
-                REVENUE_STATUSES,
+                [...REVENUE_STATUSES] as OrderStatus[],
             },
           },
 
@@ -85,6 +85,7 @@ export async function GET() {
 
         prisma.downloadLog.count({
           where: {
+            ...dateWhere,
             type: {
               not:
                 "play",
@@ -97,6 +98,7 @@ export async function GET() {
 
         prisma.downloadLog.count({
           where: {
+            ...dateWhere,
             type: {
               equals:
                 "play",
@@ -109,6 +111,7 @@ export async function GET() {
 
         prisma.order.count({
           where: {
+            ...ordersWhere,
             status:
               "pending",
           },
@@ -116,6 +119,7 @@ export async function GET() {
 
         prisma.order.count({
           where: {
+            ...ordersWhere,
             status:
               "cancelled",
           },

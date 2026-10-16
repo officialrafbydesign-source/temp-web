@@ -310,7 +310,7 @@ export default function BeatPage() {
             `${beat.bpm || 140} BPM • ${
               beat.key ||
               "C Minor"
-            } • ${beat.genre}`,
+            } • Instrumental`,
 
           url:
             beat.audioUrl,
@@ -373,9 +373,7 @@ export default function BeatPage() {
                     </span>
 
                     <span className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-bold text-white/70">
-                      {
-                        beat.genre
-                      }
+                      Instrumental
                     </span>
 
                     {beat.freeDownload && (

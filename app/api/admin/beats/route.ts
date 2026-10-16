@@ -1,3 +1,4 @@
+import { parseBeatBpm, InvalidBeatBpm } from "@/lib/beatBpm";
 import {
   NextResponse,
 } from "next/server";
@@ -87,6 +88,8 @@ export async function GET() {
           return {
             id:
               beat.id,
+            storeOrder: beat.storeOrder,
+            createdAt: beat.createdAt,
             isPublished: beat.isPublished,
             isAvailable: beat.isAvailable,
 
@@ -269,12 +272,7 @@ export async function POST(
           // Copying must not put an unavailable/exclusively sold recording back on sale.
           isAvailable: source ? source.isAvailable && !source.exclusiveSoldAt : true,
 
-          bpm:
-            body.bpm
-              ? Number(
-                  body.bpm
-                )
-              : null,
+          bpm: parseBeatBpm(body.bpm),
 
           genre:
             body.genre ||
@@ -358,6 +356,8 @@ export async function POST(
     const formattedBeat = {
       id:
         newBeat.id,
+      storeOrder: newBeat.storeOrder,
+      createdAt: newBeat.createdAt,
       isPublished: newBeat.isPublished,
       isAvailable: newBeat.isAvailable,
 
@@ -440,6 +440,7 @@ export async function POST(
       }
     );
   } catch (error) {
+    if (error instanceof InvalidBeatBpm) return NextResponse.json({ error: error.message }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     console.error(
       "POST /api/admin/beats error:",
       error

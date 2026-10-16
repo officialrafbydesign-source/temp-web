@@ -12,7 +12,6 @@ export default function AdminAddProductForm() {
   const [loading, setLoading] = useState(false);
 
   // Category Specific States
-  const [genre, setGenre] = useState("");
   const [bpm, setBpm] = useState("");
   const [artist, setArtist] = useState("");
   const [price, setPrice] = useState("");
@@ -31,8 +30,8 @@ export default function AdminAddProductForm() {
     let payload: Record<string, any> = {
       title,
       imageUrl: imageUrl, // Mapping to standard carousel layout fields
-      genre: genre || "Hip Hop",
-      bpm: parseInt(bpm) || 120
+      genre: "Instrumental",
+      bpm: Number(bpm) || 120
     };
 
     if (itemType === "MUSIC") {
@@ -66,8 +65,7 @@ export default function AdminAddProductForm() {
         // Reset states cleanly
         setTitle("");
         setImageUrl("");
-        setGenre("");
-        setBpm("");
+          setBpm("");
         setArtist("");
         setPrice("");
       } else {
@@ -123,19 +121,11 @@ export default function AdminAddProductForm() {
         {itemType === "BEAT" && (
           <>
             <div>
-              <label className="block text-xs uppercase font-black tracking-widest text-zinc-400 mb-1">Genre</label>
-              <input
-                type="text"
-                value={genre}
-                onChange={(e) => setGenre(e.target.value)}
-                className="w-full bg-zinc-950 border-2 border-black rounded-lg p-2.5 text-sm text-white focus:outline-none font-mono"
-                placeholder="Trap, Drill, etc."
-              />
-            </div>
-            <div>
               <label className="block text-xs uppercase font-black tracking-widest text-zinc-400 mb-1">BPM</label>
               <input
                 type="number"
+                step="any"
+                min="0"
                 value={bpm}
                 onChange={(e) => setBpm(e.target.value)}
                 className="w-full bg-zinc-950 border-2 border-black rounded-lg p-2.5 text-sm text-white focus:outline-none font-mono"
