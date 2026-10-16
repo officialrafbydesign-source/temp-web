@@ -1,3 +1,4 @@
+import { assertBeatBpmClient, BeatBpmClientMismatch } from "@/lib/beatBpmClient";
 import { parseBeatBpm, InvalidBeatBpm } from "@/lib/beatBpm";
 import {
   NextResponse,
@@ -210,6 +211,7 @@ export async function POST(
   }
 
   try {
+    assertBeatBpmClient();
     const body =
       await req.json();
 
@@ -440,6 +442,7 @@ export async function POST(
       }
     );
   } catch (error) {
+    if (error instanceof BeatBpmClientMismatch) return NextResponse.json({ error: error.message }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
     if (error instanceof InvalidBeatBpm) return NextResponse.json({ error: error.message }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     console.error(
       "POST /api/admin/beats error:",

@@ -627,9 +627,8 @@ export default function AdminBeatsPage() {
         );
 
         if (!res.ok) {
-          throw new Error(
-            "Backend rejected selected beat changes."
-          );
+          const failure = await res.json().catch(() => null);
+          throw new Error(failure?.error || "Backend rejected selected beat changes.");
         }
 
         alert(
@@ -640,9 +639,7 @@ export default function AdminBeatsPage() {
       } catch (err) {
         console.error(err);
 
-        alert(
-          "Error saving selected beat changes."
-        );
+        alert(err instanceof Error ? err.message : "Error saving selected beat changes.");
       } finally {
         setIsSubmitting(false);
       }

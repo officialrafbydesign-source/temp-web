@@ -1,3 +1,4 @@
+import { assertBeatBpmClient, BeatBpmClientMismatch } from "@/lib/beatBpmClient";
 import { beatStoreOrderBy } from "@/lib/beatStoreOrder";
 import { parseBeatBpm, InvalidBeatBpm } from "@/lib/beatBpm";
 import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
@@ -210,6 +211,7 @@ export async function POST(
   req: Request
 ) {
   try {
+    assertBeatBpmClient();
     const body = await req.json();
 
     const title =
@@ -348,6 +350,7 @@ export async function POST(
       newBeat
     );
   } catch (error) {
+    if (error instanceof BeatBpmClientMismatch) return NextResponse.json({ error: error.message }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
     if (error instanceof InvalidBeatBpm) return NextResponse.json({ error: error.message }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     console.error(
       "[ADMIN_BEATS_POST_ERROR]",

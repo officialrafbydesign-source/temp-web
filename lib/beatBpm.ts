@@ -1,5 +1,5 @@
 export class InvalidBeatBpm extends Error {
-  constructor() { super("BPM must be a positive number, for example 92.5. Leave it blank if unknown."); }
+  constructor() { super("BPM must be at least 1, for example 92.5. Leave it blank if unknown."); }
 }
 
 export function parseBeatBpm(value: unknown): number | null {
@@ -8,6 +8,6 @@ export function parseBeatBpm(value: unknown): number | null {
   const bpm = Number(value);
   // Existing clients use zero for an unspecified tempo.
   if (bpm === 0) return null;
-  if (!Number.isFinite(bpm) || bpm < 0) throw new InvalidBeatBpm();
+  if (!Number.isFinite(bpm) || bpm < 1) throw new InvalidBeatBpm();
   return bpm;
 }

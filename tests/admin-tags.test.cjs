@@ -11,7 +11,7 @@ function load(name, mocks = {}) {
   const source = fs.readFileSync(path.join(root, name), "utf8");
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const module = { exports: {} };
-  vm.runInNewContext(code, { module, exports: module.exports, require: (id) => id in mocks ? mocks[id] : id === "@/lib/beatBpm" ? load("lib/beatBpm.ts") : require(id), console: { ...console, error() {} } });
+  vm.runInNewContext(code, { module, exports: module.exports, require: (id) => id in mocks ? mocks[id] : id === "@/lib/beatBpm" ? load("lib/beatBpm.ts") : id === "@/lib/beatBpmClient" ? load("lib/beatBpmClient.ts", { "@prisma/client": { Prisma: { dmmf: { datamodel: { models: [{ name: "Beat", fields: [{ name: "bpm", type: "Float" }] }] } } } } }) : require(id), console: { ...console, error() {} } });
   return module.exports;
 }
 const { normaliseTags, suggestTags } = load("lib/catalogueTags.ts");

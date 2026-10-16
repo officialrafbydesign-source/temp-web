@@ -13,7 +13,7 @@ function load(name, mocks = {}, globals = {}) {
   const source = fs.readFileSync(path.join(root, name), "utf8");
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const module = { exports: {} };
-  vm.runInNewContext(code, { module, exports: module.exports, require: (id) => id in mocks ? mocks[id] : require(id), URL, console: { error() {} }, ...globals });
+  vm.runInNewContext(code, { module, exports: module.exports, require: (id) => id in mocks ? mocks[id] : id === "@/lib/beatBpmClient" ? bpmClient : require(id), URL, console: { error() {} }, ...globals });
   return module.exports;
 }
 function runtime() {
@@ -29,6 +29,7 @@ function nodes(tree, predicate) {
   if (!tree || typeof tree !== "object") return [];
   return [...(predicate(tree) ? [tree] : []), ...React.Children.toArray(tree.props?.children).flatMap((child) => nodes(child, predicate))];
 }
+const bpmClient = load("lib/beatBpmClient.ts", { "@prisma/client": { Prisma: { dmmf: { datamodel: { models: [{ name: "Beat", fields: [{ name: "bpm", type: "Float" }] }] } } } } });
 const pagination = load("lib/adminPagination.ts");
 const ordering = load("lib/beatStoreOrder.ts");
 

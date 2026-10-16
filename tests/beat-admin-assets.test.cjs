@@ -13,6 +13,8 @@ function load(relativePath, prisma, authorized = true) {
   const module = { exports: {} };
   const requireMock = (name) => {
     if (name === "@/lib/beatStoreOrder") return load("lib/beatStoreOrder.ts", prisma, authorized);
+    if (name === "@/lib/beatBpmClient") return load("lib/beatBpmClient.ts", prisma, authorized);
+    if (name === "@prisma/client") return { Prisma: { dmmf: { datamodel: { models: [{ name: "Beat", fields: [{ name: "bpm", type: "Float" }] }] } } } };
     if (name === "@/lib/beatBpm") return load("lib/beatBpm.ts", prisma, authorized);
     if (name === "@/lib/prisma") return { prisma };
     if (name === "@/lib/adminApi") return { authorizeAdminApi: async () => authorized

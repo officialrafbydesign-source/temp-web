@@ -17,6 +17,7 @@ function load(name, mocks = {}, globals = {}) {
   return module.exports;
 }
 const bpm = load("lib/beatBpm.ts");
+const bpmClient = load("lib/beatBpmClient.ts", { "@prisma/client": { Prisma: { dmmf: { datamodel: { models: [{ name: "Beat", fields: [{ name: "bpm", type: "Float" }] }] } } } } });
 const storeOrder = load("lib/beatStoreOrder.ts");
 
 test("decimal BPM is preserved and missing tempos remain optional", () => {
@@ -38,7 +39,7 @@ function apiFixture(authorized = true) {
     $transaction: (operations) => Promise.all(operations),
   };
   const mocks = {
-    "@/lib/prisma": { prisma }, "@/lib/beatBpm": bpm, "@/lib/beatStoreOrder": storeOrder,
+    "@/lib/beatBpmClient": bpmClient, "@/lib/prisma": { prisma }, "@/lib/beatBpm": bpm, "@/lib/beatStoreOrder": storeOrder,
     "@/lib/adminApi": { authorizeAdminApi: async () => authorized ? { authorized: true } : { authorized: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) } },
     "@/lib/catalogueVisibility": { PUBLIC_CATALOGUE_WHERE: { isPublished: true, deletedAt: null }, isPublicCatalogueItem: () => true },
   };
