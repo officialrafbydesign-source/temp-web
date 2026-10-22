@@ -5,7 +5,7 @@ import CatalogueActions from "./CatalogueActions";
 import CatalogueTagsInput from "./CatalogueTagsInput";
 
 export type BeatInventoryTrack = {
-  isPublished?: boolean; isAvailable?: boolean; storeOrder?: number; createdAt?: string;
+  isEditorsPick?: boolean; isPublished?: boolean; isAvailable?: boolean; storeOrder?: number; createdAt?: string;
   id: string; title: string; bpm: number; genre: string; freeDownload: boolean;
   musicalKey: string; tags: string[]; priceStandard: number; pricePremium: number;
   mp3Url: string; zipUrl: string; standardFileUrl: string;
@@ -14,6 +14,7 @@ export type BeatInventoryTrack = {
 
 type Props = {
   beat: BeatInventoryTrack; selected: boolean; expanded: boolean; busy: boolean;
+  editorsPickControl?: ReactNode;
   playing: boolean; existingTags: string[]; preview: ReactNode; selectedCount: number;
   onSelect: () => void; onExpand: () => void; onPlay: () => void; onSave: () => void;
   onDuplicate: () => void; onDeleted: () => void;
@@ -50,6 +51,7 @@ export default function BeatInventoryItem(props: Props) {
           <p className="mt-1 text-xs text-zinc-500">Leasing £{beat.priceStandard.toFixed(2)} · Exclusive £{beat.pricePremium.toFixed(2)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {props.editorsPickControl}
           <button type="button" onClick={props.onPlay} disabled={!beat.mp3Url}
             className="rounded-lg bg-zinc-200 px-3 py-2 text-xs font-bold text-zinc-900 disabled:opacity-40"
             aria-label={`${props.playing ? "Pause" : "Play"} ${beat.title}`}>{props.playing ? "Pause" : "Play"}</button>

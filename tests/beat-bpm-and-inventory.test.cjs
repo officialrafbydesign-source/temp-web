@@ -132,7 +132,7 @@ function inventoryFixture(catalogue = [beat]) {
   }, useEffect() {}, useRef: (value) => ({ current: value }), useCallback: (fn) => fn };
   const page = load("app/admin/beats/page.tsx", {
     react: hooks, "next/script": { default: () => null }, "../components/AdminLayout": { default: ({ children }) => React.createElement("div", {}, children) },
-    "../components/BeatStoreOrder": { default: () => null }, "../components/InventoryPagination": { default: Pagination }, "../components/BeatInventoryItem": { default: InventoryItem }, "../components/CatalogueTagsInput": { default: tagsInput },
+    "../components/BeatEditorsPickButton": { default: () => null }, "../components/BeatAssetPicker": { default: () => null }, "../components/InventoryPagination": { default: Pagination }, "../components/BeatInventoryItem": { default: InventoryItem }, "../components/CatalogueTagsInput": { default: tagsInput },
     "@/lib/catalogueTags": { normaliseTags: (tags) => tags },
   }, { alert() {}, fetch: async (url, options) => { sent.push({ url, body: JSON.parse(options.body) }); return { ok: true }; } });
   const render = () => { cursor = 0; return page.default(); };

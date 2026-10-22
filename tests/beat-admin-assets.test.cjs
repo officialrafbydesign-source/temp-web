@@ -109,7 +109,7 @@ function mediaLibraryFixture(env, cloudinary) {
   const code = ts.transpileModule("module.exports = " + initializer, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   const alerts = [];
   const module = { exports: {} };
-  vm.runInNewContext(code, { module, window: { cloudinary }, process: { env }, alert: (message) => alerts.push(message) });
+  vm.runInNewContext(code, { module, mediaCallback: { current: null }, mediaLibrary: { current: null }, window: { cloudinary }, process: { env }, alert: (message) => alerts.push(message) });
   return { open: module.exports, alerts };
 }
 

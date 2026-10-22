@@ -26,3 +26,35 @@ export function moveBeat(ids: string[], id: string, position: number) {
   next.splice(position - 1, 0, id);
   return next;
 }
+
+// Position is the final, one-based position of the first selected beat.
+// Selections always keep their existing relative order, including after a search.
+export function moveBeatGroup(ids: string[], selected: string[], position: number) {
+  const selection = new Set(selected);
+  const moving = ids.filter((id) => selection.has(id));
+  const remaining = ids.filter((id) => !selection.has(id));
+  if (!moving.length || !Number.isInteger(position) || position < 1 || position > remaining.length + 1) return ids;
+  return [...remaining.slice(0, position - 1), ...moving, ...remaining.slice(position - 1)];
+}
+
+export function moveBeatsBeside(ids: string[], selected: string[], target: string, side: "before" | "after") {
+  if (selected.includes(target) || !ids.includes(target)) return ids;
+  const selection = new Set(selected);
+  const remaining = ids.filter((id) => !selection.has(id));
+  return moveBeatGroup(ids, selected, remaining.indexOf(target) + (side === "before" ? 1 : 2));
+}
+
+export const sameBeatOrder = (a: string[], b: string[]) => a.length === b.length && a.every((id, index) => id === b[index]);
+
+export type BeatOrderHistory = { past: string[][]; present: string[]; future: string[][] };
+export function changeBeatOrder(history: BeatOrderHistory, next: string[]): BeatOrderHistory {
+  return sameBeatOrder(history.present, next) ? history : { past: [...history.past, history.present].slice(-50), present: next, future: [] };
+}
+export function undoBeatOrder(history: BeatOrderHistory): BeatOrderHistory {
+  if (!history.past.length) return history;
+  return { past: history.past.slice(0, -1), present: history.past[history.past.length - 1], future: [history.present, ...history.future] };
+}
+export function redoBeatOrder(history: BeatOrderHistory): BeatOrderHistory {
+  if (!history.future.length) return history;
+  return { past: [...history.past, history.present], present: history.future[0], future: history.future.slice(1) };
+}

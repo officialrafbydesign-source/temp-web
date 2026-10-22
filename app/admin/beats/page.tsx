@@ -1,6 +1,8 @@
 "use client";
 
-import BeatStoreOrder from "../components/BeatStoreOrder";
+import BeatEditorsPickButton from "../components/BeatEditorsPickButton";
+import BeatAssetPicker from "../components/BeatAssetPicker";
+import type { BeatAssetFolder } from "@/lib/beatAssetImages";
 import InventoryPagination from "../components/InventoryPagination";
 import BeatInventoryItem, { type BeatInventoryTrack } from "../components/BeatInventoryItem";
 import CatalogueTagsInput from "../components/CatalogueTagsInput";
@@ -89,6 +91,15 @@ function BeatCardPreview({
 export default function AdminBeatsPage() {
   const [beats, setBeats] = useState<BeatTrack[]>([]);
   const [loading, setLoading] = useState(true);
+  const [assetPicker, setAssetPicker] = useState<{ folder: BeatAssetFolder; title: string; currentValue?: string } | null>(null);
+  const assetCallback = useRef<(url: string) => void>(() => {});
+  const mediaLibrary = useRef<any>(null);
+  const mediaCallback = useRef<(url: string) => void>(() => {});
+  function chooseBeatImage(callback: (url: string) => void, field: "artworkUrl" | "backgroundUrl", currentValue?: string) {
+    assetCallback.current = callback;
+    setAssetPicker({ folder: field === "backgroundUrl" ? "backgrounds" : "logos", title: field === "backgroundUrl" ? "Choose background image" : "Choose foreground / logo", currentValue });
+  }
+
 
   /* =========================================================
      SELECTION / BULK EDITING
@@ -420,62 +431,21 @@ export default function AdminBeatsPage() {
      CLOUDINARY MEDIA LIBRARY
   ========================================================= */
 
-  const openCloudinaryMediaLibrary = (
-    onSuccessCallback: (
-      url: string
-    ) => void
-  ) => {
-    if (
-      typeof window === "undefined" ||
-      typeof window.cloudinary?.openMediaLibrary !== "function"
-    ) {
-      alert(
-        "Cloudinary Media Library is still loading."
-      );
-
-      return;
+  const openCloudinaryMediaLibrary = (onSuccessCallback: (url: string) => void, folderPath?: string) => {
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
+    if (!cloudName) { alert("The image library needs NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME in Vercel. You can also paste an existing image URL."); return; }
+    const widget = typeof window !== "undefined" ? window.cloudinary : null;
+    if (!widget || (typeof widget.createMediaLibrary !== "function" && typeof widget.openMediaLibrary !== "function")) {
+      alert("Cloudinary Media Library is still loading. Please try again."); return;
     }
-
-    const cloudName =
-      process.env
-        .NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-
-    const apiKey =
-      process.env
-        .NEXT_PUBLIC_CLOUDINARY_API_KEY;
-
-    // Cloudinary's Media Library requires the cloud name; its API key is optional.
-    if (!cloudName) {
-      alert(
-        "The image library needs NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME in Vercel. You can also paste an existing image URL below."
-      );
-
-      return;
-    }
-
-    window.cloudinary.openMediaLibrary(
-      {
-        cloud_name: cloudName,
-        ...(apiKey ? { api_key: apiKey } : {}),
-        multiple: false,
-        insert_caption: "Use Selected Asset",
-      },
-
-      {
-        insertHandler: (
-          data: any
-        ) => {
-          if (
-            data.assets &&
-            data.assets.length > 0
-          ) {
-            onSuccessCallback(
-              data.assets[0].secure_url
-            );
-          }
-        },
-      }
-    );
+    mediaCallback.current = onSuccessCallback;
+    const options = { cloud_name: cloudName, ...(apiKey ? { api_key: apiKey } : {}), multiple: false, insert_caption: "Use Selected Asset" };
+    const callbacks = { insertHandler: (data: any) => { const url = data.assets?.[0]?.secure_url; if (url) mediaCallback.current(url); } };
+    if (typeof widget.createMediaLibrary === "function") {
+      if (!mediaLibrary.current) mediaLibrary.current = widget.createMediaLibrary(options, callbacks);
+      mediaLibrary.current.show(folderPath ? { folder: { path: folderPath, resource_type: "image" } } : {});
+    } else { widget.openMediaLibrary(options, callbacks); }
   };
 
   /* =========================================================
@@ -1222,6 +1192,9 @@ export default function AdminBeatsPage() {
         strategy="lazyOnload"
       />
 
+      {assetPicker && <BeatAssetPicker key={assetPicker.folder + assetPicker.title} initialFolder={assetPicker.folder} title={assetPicker.title} currentValue={assetPicker.currentValue}
+        onClose={() => setAssetPicker(null)} onChoose={(url) => { assetCallback.current(url); setAssetPicker(null); }}
+        onFullLibrary={(path) => { setAssetPicker(null); openCloudinaryMediaLibrary((url) => assetCallback.current(url), path); }} />}
       <div className="space-y-8 text-zinc-900 pb-12">
         {/* =====================================================
             CATALOG INTAKE
@@ -1418,12 +1391,7 @@ export default function AdminBeatsPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      openCloudinaryMediaLibrary(
-                        (url) =>
-                          setArtworkUrl(
-                            url
-                          )
-                      )
+                      chooseBeatImage(setArtworkUrl, "artworkUrl", artworkUrl)
                     }
                     className="w-full bg-zinc-900 text-white p-2.5 rounded-lg font-bold text-xs"
                   >
@@ -1490,12 +1458,7 @@ export default function AdminBeatsPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      openCloudinaryMediaLibrary(
-                        (url) =>
-                          setBackgroundUrl(
-                            url
-                          )
-                      )
+                      chooseBeatImage(setBackgroundUrl, "backgroundUrl", backgroundUrl)
                     }
                     className="w-full bg-zinc-900 text-white p-2.5 rounded-lg font-bold text-xs"
                   >
@@ -1809,13 +1772,7 @@ export default function AdminBeatsPage() {
                   0
                 }
                 onClick={() =>
-                  openCloudinaryMediaLibrary(
-                    (url) =>
-                      applyAssetToSelected(
-                        "artworkUrl",
-                        url
-                      )
-                  )
+                  chooseBeatImage((url) => applyAssetToSelected("artworkUrl", url), "artworkUrl")
                 }
                 className="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold disabled:opacity-40"
               >
@@ -1829,13 +1786,7 @@ export default function AdminBeatsPage() {
                   0
                 }
                 onClick={() =>
-                  openCloudinaryMediaLibrary(
-                    (url) =>
-                      applyAssetToSelected(
-                        "backgroundUrl",
-                        url
-                      )
-                  )
+                  chooseBeatImage((url) => applyAssetToSelected("backgroundUrl", url), "backgroundUrl")
                 }
                 className="bg-purple-600 text-white px-4 py-2 rounded text-xs font-bold disabled:opacity-40"
               >
@@ -1914,11 +1865,9 @@ export default function AdminBeatsPage() {
             </p>
           </div>
 
-          <div className="p-4">
-            <BeatStoreOrder beats={beats} disabled={loading || isSubmitting} onSaved={(items) => {
-              const positions = new Map(items.map((item) => [item.id, item.storeOrder]));
-              setBeats((current) => current.map((beat) => positions.has(beat.id) ? { ...beat, storeOrder: positions.get(beat.id) } : beat));
-            }} />
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white p-4">
+            <div><h3 className="text-sm font-black">Beat Store order</h3><p className="mt-1 text-xs text-zinc-600">Use the full-page editor to move beats and preview the order. Save inventory edits first. The editor opens in a separate tab.</p></div>
+            <a href="/admin/beats/order" target="_blank" rel="noopener noreferrer" className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-bold text-white">Open order editor ↗</a>
           </div>
           <div className="flex flex-wrap items-end gap-3 border-b border-zinc-200 p-4">
             <label className="min-w-0 flex-1 basis-48 text-xs font-bold">Find a beat
@@ -1939,12 +1888,16 @@ export default function AdminBeatsPage() {
             </div>
           </div>
           <p className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500">{sortedBeats.length} matching beat(s). Tick a beat to edit, or use Edit / Expand. Changing views keeps your unsaved edits.</p>
+          <InventoryPagination currentPage={visiblePage} totalPages={totalPages} totalItems={sortedBeats.length}
+            pageSize={itemsPerPage} onChange={setCurrentPage} location="top" />
           {loading ? <p className="p-6 text-sm text-zinc-500">Loading catalogue...</p>
             : currentPagedBeats.length === 0 ? <p className="p-6 text-sm text-zinc-500">No beats found.</p>
             : currentPagedBeats.map((beat) => {
               const expanded = expandedBeats[beat.id] ?? inventoryView === "expanded";
               return <BeatInventoryItem key={beat.id} beat={beat} selected={isSelected(beat.id)} expanded={expanded}
                 busy={isSubmitting} selectedCount={selectedIds.length} existingTags={existingTags}
+                editorsPickControl={<BeatEditorsPickButton id={beat.id} title={beat.title} picked={beat.isEditorsPick === true} disabled={isSubmitting}
+                  onSaved={(isEditorsPick) => setBeats((current) => current.map((item) => item.id === beat.id ? { ...item, isEditorsPick } : item))} />}
                 playing={currentPlayingId === beat.id && isPlaying}
                 preview={<BeatCardPreview artworkUrl={beat.artworkUrl} backgroundUrl={beat.backgroundUrl} title={beat.title} />}
                 onSelect={() => toggleSelected(beat.id)} onPlay={() => togglePlayAudio(beat)}
@@ -1953,14 +1906,14 @@ export default function AdminBeatsPage() {
                   if (!expanded) setSelectedIds((ids) => ids.includes(beat.id) ? ids : [...ids, beat.id]);
                 }}
                 onChange={(field, value) => handleBulkChange(beat.id, field, value)}
-                onChooseImage={(field, upload) => (upload ? openCloudinaryUploadWidget : openCloudinaryMediaLibrary)((url) => handleBulkChange(beat.id, field, url))}
+                onChooseImage={(field, upload) => upload ? openCloudinaryUploadWidget((url) => handleBulkChange(beat.id, field, url)) : chooseBeatImage((url) => handleBulkChange(beat.id, field, url), field, beat[field])}
                 onSave={saveSelectedChangesToServer} onDuplicate={() => handleDuplicateBeat(beat)}
                 onVisibilityChange={(isPublished) => setBeats((items) => items.map((item) => item.id === beat.id ? { ...item, isPublished } : item))}
                 onDeleted={() => { setBeats((items) => items.filter((item) => item.id !== beat.id)); setSelectedIds((ids) => ids.filter((id) => id !== beat.id)); }} />;
             })}
 
           <InventoryPagination currentPage={visiblePage} totalPages={totalPages} totalItems={sortedBeats.length}
-            pageSize={itemsPerPage} onChange={setCurrentPage} />
+            pageSize={itemsPerPage} onChange={setCurrentPage} location="bottom" />
 
         </div>
         {selectedIds.length > 0 && <div className="sticky bottom-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-white p-3 shadow-xl">

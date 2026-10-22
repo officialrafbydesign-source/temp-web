@@ -149,6 +149,7 @@ export async function GET(
         return {
           id: beat.id,
           storeOrder: beat.storeOrder,
+          isEditorsPick: beat.isEditorsPick === true,
           createdAt: beat.createdAt,
           title: beat.title,
           genre: "Instrumental",

@@ -105,6 +105,7 @@ function SafeImage({ src, alt, ...props }: any) {
   );
 }
 type Beat = {
+  isEditorsPick?: boolean;
   storeOrder?: number;
   createdAt?: string;
   id: string;
@@ -668,6 +669,7 @@ export default function BeatStorePage() {
                             className="object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.65)] transition-transform duration-300 group-hover:scale-[1.03]"
                           />
                         </div>
+                        {beat.isEditorsPick && <span role="img" aria-label="Editor's pick" title="Editor's pick" className="pointer-events-none absolute left-1.5 top-1.5 z-30 flex h-6 w-6 items-center justify-center rounded-full border border-yellow-400/60 bg-black/85 text-base leading-none text-yellow-400 sm:left-3 sm:top-3 sm:h-8 sm:w-8 sm:text-xl">★</span>}
                         {/* PLAY TOGGLE OVERLAY */}
                         {beat.audioUrl && (
                           <div className="absolute inset-0 z-20 bg-black/25 sm:bg-black/45 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center">

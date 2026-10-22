@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { pageNumbers, parsePageInput } from "@/lib/adminPagination";
 
-export default function InventoryPagination({ currentPage, totalPages, totalItems, pageSize, onChange }: {
+export default function InventoryPagination({ currentPage, totalPages, totalItems, pageSize, onChange, location = "bottom" }: {
   currentPage: number; totalPages: number; totalItems: number; pageSize: number;
-  onChange: (page: number) => void;
+  onChange: (page: number) => void; location?: "top" | "bottom";
 }) {
   const [jump, setJump] = useState(String(currentPage));
   const [error, setError] = useState("");
@@ -15,7 +15,7 @@ export default function InventoryPagination({ currentPage, totalPages, totalItem
     <div className="space-y-3 border-t border-zinc-200 bg-zinc-50 p-4">
       <p className="text-xs text-zinc-600">Page {currentPage} of {totalPages} · Showing {totalItems ? (currentPage - 1) * pageSize + 1 : 0}–{Math.min(currentPage * pageSize, totalItems)} of {totalItems} beats</p>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label="Beat inventory pages" className="flex flex-wrap items-center gap-1">
+        <nav aria-label={`Beat inventory pages (${location})`} className="flex flex-wrap items-center gap-1">
           <button type="button" onClick={() => onChange(currentPage - 1)} disabled={currentPage <= 1} className={buttonClass}>Previous</button>
           {pageNumbers(currentPage, totalPages).map((page, index) => page === "ellipsis"
             ? <span key={`gap-${index}`} className="px-1 text-zinc-500" aria-hidden="true">…</span>

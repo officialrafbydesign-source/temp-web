@@ -92,7 +92,7 @@ test("the beat admin keeps its tag editor, key and delivery fields without askin
     "next/script": { default: () => null },
     "../components/AdminLayout": { default: wrapper },
     "../components/CatalogueActions": { default: () => null },
-    "../components/BeatStoreOrder": { default: () => null },
+    "../components/BeatEditorsPickButton": { default: () => null }, "../components/BeatAssetPicker": { default: () => null },
     "../components/BeatInventoryItem": { default: () => null },
     "../components/InventoryPagination": { default: () => null },
     "../components/CatalogueTagsInput": { default: () => React.createElement("input", { "aria-label": "Beat tags" }) },

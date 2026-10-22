@@ -90,6 +90,7 @@ export async function GET() {
             id:
               beat.id,
             storeOrder: beat.storeOrder,
+            isEditorsPick: beat.isEditorsPick === true,
             createdAt: beat.createdAt,
             isPublished: beat.isPublished,
             isAvailable: beat.isAvailable,
@@ -359,6 +360,7 @@ export async function POST(
       id:
         newBeat.id,
       storeOrder: newBeat.storeOrder,
+      isEditorsPick: newBeat.isEditorsPick === true,
       createdAt: newBeat.createdAt,
       isPublished: newBeat.isPublished,
       isAvailable: newBeat.isAvailable,

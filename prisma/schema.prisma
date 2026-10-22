@@ -85,6 +85,7 @@ model AuthRateLimit {
 //////////////////////
 
 model Beat {
+  isEditorsPick Boolean @default(false)
   storeOrder Int @default(1000000)
   isPublished Boolean @default(true)
   deletedAt DateTime?
