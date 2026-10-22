@@ -82,27 +82,30 @@ test("moving beats and refreshing the catalogue retains each product once", () =
   assert.deepEqual(plain(ordering.moveBeat(["a", "b"], "missing", 1)), ["a", "b"]);
   assert.deepEqual(plain(ordering.reconcileBeatOrder(["older", "deleted", "newer"], initial)), ["older", "newer", "hidden"]);
 });
+const saveSql = load("lib/beatStoreOrderSave.ts");
 function fixture({ authorized = true, failAt = 0, missingAt = 0 } = {}) {
   let rows = plain(initial); const writes = []; const queries = [];
-  const prisma = { $transaction: async (callback) => {
-    const before = plain(rows);
-    try { return await callback({ beat: {
-      findMany: async (args) => { queries.push(args); return rows.filter((row) => row.deletedAt === null).map(({ id }) => ({ id })); },
-      updateMany: async (args) => {
-        writes.push(plain(args));
-        if (writes.length === failAt) throw new Error("Database failure");
-        if (writes.length === missingAt) return { count: 0 };
-        const row = rows.find((row) => row.id === args.where.id && row.deletedAt === null);
-        if (!row) return { count: 0 };
-        Object.assign(row, args.data); return { count: 1 };
-      },
-    } }); } catch (error) { rows = before; throw error; }
+  const prisma = { $queryRaw: async (statement) => {
+    queries.push(statement);
+    if (failAt) throw new Error("Database failure");
+    const ids = JSON.parse(statement.values[0]);
+    const active = rows.filter((row) => row.deletedAt === null);
+    const matches = !missingAt && ids.length === active.length && ids.every((id) => active.some((row) => row.id === id));
+    if (!matches) return [{ catalogueMatches: false, items: [] }];
+    const items = ids.map((id, index) => ({ id, storeOrder: index + 1 }));
+    for (const item of items) {
+      writes.push({ data: { storeOrder: item.storeOrder } });
+      rows.find((row) => row.id === item.id).storeOrder = item.storeOrder;
+    }
+    return [{ catalogueMatches: true, items }];
   } };
   const route = load("app/api/admin/beats/order/route.ts", {
+    "@/lib/beatStoreOrderSave": saveSql,
     "@/lib/prisma": { prisma }, "@/lib/adminApi": { authorizeAdminApi: async () => authorized ? { authorized: true } : { authorized: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) } },
   });
   return { route, rows: () => rows, writes, queries };
 }
+
 const request = (body) => new Request("https://example.com/api/admin/beats/order", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: typeof body === "string" ? body : JSON.stringify(body) });
 test("saving store order changes only positions, retaining hidden beats and every paid asset", async () => {
   const f = fixture();

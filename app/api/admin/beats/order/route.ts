@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminApi } from "@/lib/adminApi";
+import { beatStoreOrderStatement, type BeatStoreOrderSaveResult } from "@/lib/beatStoreOrderSave";
 
 export const dynamic = "force-dynamic";
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
-class CatalogueChanged extends Error {}
 
 export async function PATCH(request: Request) {
   const authorization = await authorizeAdminApi();
@@ -17,23 +17,20 @@ export async function PATCH(request: Request) {
     return json({ error: "Supply each beat ID once in the desired order." }, 400);
   }
   try {
-    const items = await prisma.$transaction(async (tx) => {
-      const existing = await tx.beat.findMany({ where: { deletedAt: null }, select: { id: true } });
-      const requested = new Set(ids);
-      if (existing.length !== ids.length || existing.some((item) => !requested.has(item.id))) throw new CatalogueChanged();
-      const result = [];
-      for (const [index, id] of (ids as string[]).entries()) {
-        const storeOrder = index + 1;
-        const updated = await tx.beat.updateMany({ where: { id, deletedAt: null }, data: { storeOrder } });
-        if (updated.count !== 1) throw new CatalogueChanged();
-        result.push({ id, storeOrder });
-      }
-      return result;
-    });
-    return json({ success: true, items });
+    const [result] = await prisma.$queryRaw<BeatStoreOrderSaveResult[]>(beatStoreOrderStatement(ids as string[]));
+    if (!result || result.catalogueMatches !== true) {
+      return json({ error: "The beat catalogue changed. Refresh the page before saving its order." }, 409);
+    }
+    return json({ success: true, items: result.items });
   } catch (error) {
-    if (error instanceof CatalogueChanged) return json({ error: "The beat catalogue changed. Refresh the page before saving its order." }, 409);
     console.error("Unable to save Beat Store order", error);
-    return json({ error: "Unable to save the Beat Store order." }, 500);
+    const value = error && typeof error === "object" ? error as { code?: unknown; meta?: { code?: unknown } } : {};
+    const code = typeof value.code === "string" && /^P\d{4}$/.test(value.code) ? value.code : "ORDER_SAVE_FAILED";
+    const databaseCode = typeof value.meta?.code === "string" ? value.meta.code : "";
+    const retryable = ["P1001", "P1002", "P1008", "P1017", "P2024", "P2028", "P2034"].includes(code)
+      || ["40001", "40P01", "55P03", "57014"].includes(databaseCode);
+    return json({ error: retryable
+      ? `The database was busy or timed out. Your draft is still here; try Save store order again. (${code})`
+      : `Unable to save the Beat Store order. Your draft is still here. (${code})`, code }, retryable ? 503 : 500);
   }
 }
