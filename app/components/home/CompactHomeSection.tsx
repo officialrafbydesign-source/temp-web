@@ -13,17 +13,33 @@ export type HomeTile = {
   meta?: string;
   external?: boolean;
   insetImage?: boolean;
+  backgroundImage?: string;
+  layeredBeat?: boolean;
 };
 
 function HomeCard({ tile }: { tile: HomeTile }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [backgroundFailed, setBackgroundFailed] = useState(false);
   useEffect(() => setImageFailed(false), [tile.image]);
+  useEffect(() => setBackgroundFailed(false), [tile.backgroundImage]);
+  const background = tile.layeredBeat && !backgroundFailed ? tile.backgroundImage : undefined;
+  const cardClassName = `home-card${tile.layeredBeat ? " home-beat-card" : ""}`;
+  const cardStyle = background ? {
+    backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.82), rgba(0,0,0,0.96)), url(${JSON.stringify(background)})`,
+    backgroundPosition: "center center",
+    backgroundSize: "cover",
+  } : undefined;
 
   const content = (
     <>
       <div className={`home-card-image${tile.insetImage ? " home-card-image-inset" : ""}`}>
+        {tile.layeredBeat && <>
+          {background ? <img className="home-beat-background" src={background} alt="" aria-hidden="true" loading="lazy" decoding="async" onError={() => setBackgroundFailed(true)} />
+            : <div className="home-beat-background-fallback" aria-hidden="true" />}
+          <div className="home-beat-image-shade" aria-hidden="true" />
+        </>}
         {tile.image && !imageFailed ? (
-          <img src={tile.image} alt={tile.title} loading="lazy" decoding="async" onError={() => setImageFailed(true)} />
+          <img className={tile.layeredBeat ? "home-beat-foreground" : undefined} src={tile.image} alt={tile.title} loading="lazy" decoding="async" onError={() => setImageFailed(true)} />
         ) : (
           <div className="home-image-fallback"><img src="/images/logo.png" alt="RAF By Design" /></div>
         )}
@@ -37,14 +53,14 @@ function HomeCard({ tile }: { tile: HomeTile }) {
   );
 
   return tile.external ? (
-    <a className="home-card" href={tile.href} target="_blank" rel="noopener noreferrer" title={tile.title} aria-label={`${tile.tag || "RAF"}: ${tile.title}`}>{content}</a>
+    <a className={cardClassName} style={cardStyle} href={tile.href} target="_blank" rel="noopener noreferrer" title={tile.title} aria-label={`${tile.tag || "RAF"}: ${tile.title}`}>{content}</a>
   ) : (
-    <Link className="home-card" href={tile.href} title={tile.title}>{content}</Link>
+    <Link className={cardClassName} style={cardStyle} href={tile.href} title={tile.title}>{content}</Link>
   );
 }
 
 export default function CompactHomeSection({
-  id, title, summary, cards, columns = 4, emptyText = "Loading the latest items…", busy = false,
+  id, title, summary, cards, columns = 4, emptyText = "Loading the latest items…", busy = false, viewMoreHref,
 }: {
   id: string;
   title: string;
@@ -53,6 +69,7 @@ export default function CompactHomeSection({
   columns?: 2 | 3 | 4;
   emptyText?: string;
   busy?: boolean;
+  viewMoreHref?: string;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ previous: false, next: false });
@@ -86,6 +103,7 @@ export default function CompactHomeSection({
           <p>{summary}</p>
         </div>
         <div className="home-row-controls">
+          {viewMoreHref && <Link href={viewMoreHref} className="home-view-more" aria-label={`View more ${title.toLowerCase()}`}>View more</Link>}
           <button type="button" aria-label={`Previous ${title} cards`} disabled={!position.previous} onClick={() => move(-1)}>‹</button>
           <button type="button" aria-label={`Next ${title} cards`} disabled={!position.next} onClick={() => move(1)}>›</button>
         </div>
@@ -111,6 +129,8 @@ export const compactHomepageCss = `
   .home-compact .home-row-controls button { width: 30px; height: 30px; border: 1px solid #52525b; border-radius: 7px; background: #18181b; color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
   .home-compact .home-row-controls button:hover:not(:disabled) { background: #b91c1c; }
   .home-compact .home-row-controls button:disabled { opacity: .3; cursor: default; }
+  .home-compact .home-view-more { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; height: 30px; padding: 0 10px; border: 1px solid #ef4444; border-radius: 7px; background: #b91c1c; color: #fff; font-size: 12px; line-height: 1; font-weight: 700; white-space: nowrap; text-decoration: none; }
+  .home-compact .home-view-more:hover { background: #dc2626; }
   .home-compact .home-card-row { display: flex; align-items: stretch; gap: 12px; min-width: 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: #7f1d1d transparent; padding: 0 0 6px; }
   .home-compact .home-card { flex: 0 0 calc((100% - 36px) / 4); min-width: 0; display: grid; grid-template-rows: 120px minmax(0, 1fr); border: 1px solid #3f3f46; border-radius: 9px; background: #09090b; overflow: hidden; scroll-snap-align: start; text-decoration: none; color: #fff; transition: border-color .2s; }
   .home-compact .home-card-row-3 .home-card { flex-basis: calc((100% - 24px) / 3); }
@@ -118,6 +138,11 @@ export const compactHomepageCss = `
   .home-compact .home-card:hover { border-color: #ef4444; }
   .home-compact .home-card-image { position: relative; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #111113; border-bottom: 1px solid #27272a; }
   .home-compact .home-card-image > img { height: 100%; width: 100%; object-fit: contain; padding: 4px; }
+  .home-compact .home-beat-card .home-card-image > .home-beat-background { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; padding: 0; }
+  .home-compact .home-beat-background-fallback { position: absolute; inset: 0; background: linear-gradient(to bottom right, #18181b, #09090b, #000); }
+  .home-compact .home-beat-image-shade { position: absolute; inset: 0; background: rgba(0,0,0,.1); }
+  .home-compact .home-beat-card .home-card-image > .home-beat-foreground { position: relative; z-index: 1; filter: drop-shadow(0 8px 14px rgba(0,0,0,.65)); }
+  .home-compact .home-beat-card .home-image-fallback { position: relative; z-index: 1; }
   .home-compact .home-card-image-inset > img { width: 78%; height: 78%; max-width: 230px; object-fit: contain; padding: 8px; }
   .home-compact [aria-labelledby="services-heading"] .home-card-image > img { width: 100%; height: 100%; object-fit: cover; padding: 0; }
   .home-compact .home-card-copy { min-width: 0; padding: 9px 11px; display: flex; flex-direction: column; }
@@ -127,7 +152,7 @@ export const compactHomepageCss = `
   .home-compact .home-image-fallback { height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; }
   .home-compact .home-image-fallback img { width: 64px; height: 64px; object-fit: contain; }
   .home-compact .home-shelf-empty { display: flex; justify-content: center; align-items: center; margin: 0; width: 100%; color: #a1a1aa; font-size: 14px; }
-  .home-compact .home-card:focus-visible, .home-compact .home-card-row:focus-visible, .home-compact .home-row-controls button:focus-visible { outline: 2px solid #f87171; outline-offset: -2px; }
+  .home-compact .home-card:focus-visible, .home-compact .home-card-row:focus-visible, .home-compact .home-row-controls button:focus-visible, .home-compact .home-view-more:focus-visible { outline: 2px solid #f87171; outline-offset: -2px; }
   @media (max-width: 767px) {
     .home-compact .home-sections { padding: 20px 12px 0; gap: 20px; }
     .home-compact .home-shelf { padding: 12px; grid-template-rows: 52px minmax(0, 1fr); }

@@ -5,7 +5,7 @@ import { sanitizeCloudinaryUrl } from "@/lib/utils";
 import NewsletterModal from "@/components/home/NewsletterModal";
 import CompactHomeSection, { compactHomepageCss, type HomeTile } from "@/components/home/CompactHomeSection";
 
-type Beat = { id: string; title: string; genre?: string; bpm?: number; artworkUrl?: string };
+type Beat = { id: string; title: string; genre?: string; bpm?: number; artworkUrl?: string; backgroundUrl?: string | null; backCoverUrl?: string | null };
 type MusicRelease = { id: string; releaseId: string; title: string; artist: string; coverUrl?: string };
 type ClothingProduct = { id: string; name: string; price: number; imageUrl?: string; imageUrls?: string[] };
 type SocialPost = {
@@ -151,8 +151,8 @@ export default function Home() {
       <div className="home-sections">
         <CompactHomeSection id="explore" title="Explore RAF By Design" summary="Everything creative in one place." cards={categories} />
         <CompactHomeSection id="beats" title="Beats" summary="Browse our latest instrumentals." cards={beats.map((beat) => ({
-          id: beat.id, title: beat.title, subtitle: beat.genre || "Production Instrumental", image: sanitizeCloudinaryUrl(beat.artworkUrl, ""), href: `/beats/${beat.id}`, tag: beat.bpm ? `${beat.bpm} BPM` : "AUDIO", meta: "View beat →",
-        }))} busy={catalogueLoading} emptyText={catalogueLoading ? "Loading the latest beats…" : "Explore the beat store for available instrumentals."} />
+          id: beat.id, title: beat.title, subtitle: beat.genre || "Production Instrumental", image: sanitizeCloudinaryUrl(beat.artworkUrl, ""), backgroundImage: sanitizeCloudinaryUrl(beat.backgroundUrl || beat.backCoverUrl || undefined, ""), layeredBeat: true, href: `/beats/${beat.id}`, tag: beat.bpm ? `${beat.bpm} BPM` : "AUDIO", meta: "View beat →",
+        }))} viewMoreHref="/beats/store" busy={catalogueLoading} emptyText={catalogueLoading ? "Loading the latest beats…" : "Explore the beat store for available instrumentals."} />
         <CompactHomeSection id="music" title="Music Store" summary="Latest albums, singles and releases." cards={music.map((release) => {
           const targetId = release.releaseId || release.id || "";
           return { id: release.id || targetId, title: release.title || "Untitled", subtitle: release.artist || "RAF By Design", image: sanitizeCloudinaryUrl(release.coverUrl, ""), href: targetId ? `/music/${targetId}` : "/music", tag: "RELEASE", meta: "View release →" };
