@@ -1,5 +1,5 @@
-import BeatCard from "../components/BeatCard";
+import BeatCard from "./components/beats/BeatCard";
 
 export default function TestPage() {
-  return <BeatCard beat={{ id: "1", title: "Test Beat", audioUrl: "", genre: "Hip Hop", licenses: [{ id: "1", name: "Basic", price: 10 }] }} />;
+  return <BeatCard id="1" title="Test Beat" audioUrl="" bpm={90} tags={["Hip Hop"]} />;
 }

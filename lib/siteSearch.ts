@@ -14,6 +14,7 @@ export type SiteSearchResult = {
 const pages = [
   { title: "Beat Store", href: "/beats/store", description: "Browse instrumentals and beat licences.", keywords: "beats instrumentals buy shop licensing" },
   { title: "Music Store", href: "/music", description: "Browse albums, singles and music releases.", keywords: "music shop songs trexx albums singles" },
+  { title: "Artists", href: "/music/artists", description: "Explore artist releases, videos, artwork and series.", keywords: "music artists trexx videos lifestyleofarapper" },
   { title: "Clothing Store", href: "/clothing", description: "Shop HipHop100 clothing and merchandise.", keywords: "clothing hiphop100 clothes hoodies shirts merchandise" },
   { title: "HipHop100", href: "/clothing/hiphop100", description: "Explore the HipHop100 brand and media.", keywords: "clothing hiphop100 campaigns cyphers" },
   { title: "Music Services", href: "/beats/services", description: "Recording, mixing, audio editing and custom beat production.", keywords: "music services mastering production studio" },
@@ -38,6 +39,12 @@ export async function searchSite(query: string) {
   }).map((page) => ({ ...page, id: page.href, kind: "Pages & Services" }));
   const contains = { contains: query, mode: "insensitive" as const };
   const groups = await Promise.allSettled([
+    prisma.artist.findMany({
+      where: { isProfilePublished: true, OR: [{ name: contains }, { biography: contains }] },
+      select: { id: true, name: true, slug: true, imageUrl: true }, take: 24, orderBy: { name: "asc" },
+    }).then((artists): SiteSearchResult[] => artists.map((artist) => ({
+      id: artist.id, title: artist.name, description: "Artist · music, videos and releases", href: `/music/artists/${encodeURIComponent(artist.slug || artist.id)}`, image: artist.imageUrl, kind: "Music",
+    }))),
     prisma.beat.findMany({
       where: { ...PUBLIC_CATALOGUE_WHERE, isAvailable: true, OR: [{ title: contains }, { genre: contains }, { description: contains }] },
       select: { id: true, title: true, genre: true, artworkUrl: true },

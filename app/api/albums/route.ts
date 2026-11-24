@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_CATALOGUE_WHERE } from "@/lib/catalogueVisibility";
 
 export async function GET() {
   try {
@@ -8,6 +9,7 @@ export async function GET() {
       await prisma.release.findMany({
         where: {
           type: "album",
+          product: { is: PUBLIC_CATALOGUE_WHERE },
         },
 
         include: {

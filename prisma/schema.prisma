@@ -61,6 +61,7 @@ model User {
   enquiries  DesignEnquiry[]
   orders     Order[]
   favorites  Favorite[]
+  artistAccess ArtistAccess[]
 }
 
 //////////////////////
@@ -176,9 +177,18 @@ model DownloadLog {
 model Artist {
   id   String @id @default(cuid())
   name String @unique
+  slug String? @unique
+  biography String?
+  imageUrl String?
+  bannerUrl String?
+  links Json?
+  isProfilePublished Boolean @default(false)
 
   releases Release[]
   songs    Song[]
+  extras MusicExtra[]
+  access ArtistAccess[]
+  submissions ArtistSubmission[]
 }
 
 model Release {
@@ -193,12 +203,16 @@ model Release {
   releaseDate DateTime?
   catalogNo   String?
   featured    Boolean   @default(false)
+  standardLinks Json?
+  packageNote String?
 
   artistId String
   artist   Artist @relation(fields: [artistId], references: [id])
 
   songs   Song[]
   product MusicProduct?
+  extras MusicExtra[]
+  submissions ArtistSubmission[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -239,6 +253,96 @@ model MusicProduct {
   fileUrl String?
 
   createdAt DateTime @default(now())
+}
+
+// These extras supplement the complete standard release. Access and
+// RAF-only availability are separate editorial decisions.
+enum MusicExtraAccess {
+  public
+  members
+  purchase
+}
+
+enum ArtistSubmissionStatus {
+  draft
+  submitted
+  approved
+  rejected
+}
+
+model MusicExtra {
+  id String @id @default(cuid())
+  artistId String
+  releaseId String?
+  title String
+  description String?
+  kind String
+  access MusicExtraAccess @default(public)
+  isPublished Boolean @default(false)
+  rafOnly Boolean @default(false)
+  url String?
+  fileKey String?
+  previewImageUrl String?
+  seriesTitle String?
+  episodeNo Int?
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  artist Artist @relation(fields: [artistId], references: [id])
+  release Release? @relation(fields: [releaseId], references: [id])
+
+  @@index([artistId, isPublished, sortOrder])
+  @@index([releaseId, isPublished, sortOrder])
+}
+
+model ArtistAccess {
+  id String @id @default(cuid())
+  artistId String
+  userId String
+  isActive Boolean @default(true)
+  agreementUrl String
+  agreementVersion String
+  agreementAcceptedAt DateTime?
+  createdAt DateTime @default(now())
+  artist Artist @relation(fields: [artistId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submissions ArtistSubmission[]
+  uploads ArtistUpload[]
+
+  @@unique([artistId, userId])
+  @@index([userId, isActive])
+}
+
+model ArtistSubmission {
+  id String @id @default(cuid())
+  artistId String
+  accessId String
+  targetReleaseId String?
+  status ArtistSubmissionStatus @default(draft)
+  data Json
+  reviewNote String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  artist Artist @relation(fields: [artistId], references: [id])
+  access ArtistAccess @relation(fields: [accessId], references: [id])
+  targetRelease Release? @relation(fields: [targetReleaseId], references: [id])
+
+  @@index([artistId, status])
+  @@index([accessId, createdAt])
+}
+
+model ArtistUpload {
+  id String @id @default(cuid())
+  accessId String
+  fileKey String @unique
+  fileName String
+  mimeType String
+  byteSize Int
+  purpose String
+  createdAt DateTime @default(now())
+  access ArtistAccess @relation(fields: [accessId], references: [id])
+
+  @@index([accessId, createdAt])
 }
 
 //////////////////////

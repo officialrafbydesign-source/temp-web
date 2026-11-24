@@ -1,6 +1,7 @@
 import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_ARTIST_SELECT } from "@/lib/musicHubServer";
 
 export const dynamic = "force-dynamic";
 
@@ -41,11 +42,10 @@ export async function GET(
             catalogNo: true,
             releaseDate: true,
             featured: true,
+            standardLinks: true,
+            packageNote: true,
             artist: {
-              select: {
-                id: true,
-                name: true,
-              },
+              select: PUBLIC_ARTIST_SELECT,
             },
             songs: {
               orderBy: { trackNo: "asc" },

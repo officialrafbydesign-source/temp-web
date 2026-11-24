@@ -1,6 +1,7 @@
 import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_SONG_SELECT } from "@/lib/musicHubServer";
 
 export async function GET() {
   try {
@@ -24,6 +25,7 @@ export async function GET() {
             include: {
               artist: true,
               songs: {
+                select: PUBLIC_SONG_SELECT,
                 orderBy: {
                   trackNo: "asc",
                 },
@@ -50,7 +52,7 @@ export async function GET() {
 
     return NextResponse.json({
       beats,
-      music: musicProducts,
+      music: musicProducts.map(({ fileUrl, ...product }) => ({ ...product, downloadAvailable: Boolean(fileUrl) })),
       clothing: products,
     });
   } catch (error) {

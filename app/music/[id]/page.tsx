@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import MusicExtras from "@/components/music/MusicExtras";
+import { hubLinks } from "@/lib/musicHub";
+import { musicTrackPath } from "@/lib/musicTrackLinks";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/app/context/CartContext";
@@ -15,7 +18,7 @@ type Song = {
   trackNo?: number | null;
   price?: number | null;
   sellIndividually: boolean;
-  artist?: { id: string; name: string } | null;
+  artist?: { id: string; name: string; slug?: string | null; isProfilePublished?: boolean } | null;
 };
 
 type MusicProduct = {
@@ -34,7 +37,9 @@ type MusicProduct = {
     catalogNo?: string | null;
     releaseDate?: string | null;
     featured?: boolean;
-    artist?: { id: string; name: string } | null;
+    standardLinks?: unknown;
+    packageNote?: string | null;
+    artist?: { id: string; name: string; slug?: string | null; isProfilePublished?: boolean } | null;
     songs: Song[];
   };
 };
@@ -68,6 +73,8 @@ function normalizeArtist(value: any) {
     return {
       id: String(value.id || ""),
       name: String(value.name),
+      slug: value.slug || null,
+      isProfilePublished: value.isProfilePublished === true,
     };
   }
 
@@ -230,6 +237,8 @@ function normalizeMusicProductResponse(
         root?.releaseDate ??
         null,
       featured: Boolean(releaseCandidate?.featured),
+      standardLinks: releaseCandidate?.standardLinks,
+      packageNote: releaseCandidate?.packageNote || null,
       artist: normalizeArtist(releaseCandidate?.artist),
       songs: songsSource.map(normalizeSong),
     },
@@ -554,7 +563,7 @@ export default function MusicReleaseDetailPage() {
             </h1>
 
             <p className="mt-3 text-xl text-white/65">
-              {release.artist?.name || "Unknown Artist"}
+              {release.artist?.isProfilePublished ? <Link className="underline underline-offset-4 hover:text-emerald-300" href={`/music/artists/${encodeURIComponent(release.artist.slug || release.artist.id)}`}>{release.artist.name}</Link> : release.artist?.name || "Unknown Artist"}
             </p>
 
             {release.description && (
@@ -563,6 +572,8 @@ export default function MusicReleaseDetailPage() {
               </p>
             )}
 
+            {release.packageNote && <section className="mt-7 rounded-xl border border-emerald-500/30 bg-emerald-950/30 p-5"><h2 className="text-lg font-black text-emerald-300">The RAF edition</h2><p className="mt-2 whitespace-pre-line leading-7 text-zinc-300">{release.packageNote}</p></section>}
+            {hubLinks(release.standardLinks).length > 0 && <nav aria-label="Standard release on other platforms" className="mt-7"><h2 className="text-sm font-bold text-zinc-300">Listen / watch elsewhere</h2><div className="mt-3 flex flex-wrap gap-3">{hubLinks(release.standardLinks).map(link => <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/20 px-4 py-2 text-sm font-bold hover:border-emerald-400">{link.label} ↗</a>)}</div></nav>}
             <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-3">
               <InfoCard
                 label="Genre"
@@ -652,7 +663,7 @@ export default function MusicReleaseDetailPage() {
 
                     <div className="min-w-0">
                       <h3 className="text-lg font-black">
-                        {song.title}
+                        <Link href={musicTrackPath(song.id)} className="underline decoration-white/30 underline-offset-4 hover:text-emerald-300">{song.title}</Link>
                       </h3>
 
                       <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-zinc-400">
@@ -675,6 +686,7 @@ export default function MusicReleaseDetailPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                      <Link href={musicTrackPath(song.id)} className="rounded-full border border-white/20 px-5 py-2.5 text-sm font-bold hover:border-emerald-400">Track page &amp; downloads</Link>
                       {song.audioUrl && (
                         <button
                           type="button"
@@ -722,6 +734,7 @@ export default function MusicReleaseDetailPage() {
             </p>
           )}
         </section>
+        <MusicExtras releaseId={product.releaseId} returnTo={`/music/${encodeURIComponent(product.releaseId)}`} title="Artwork, videos & extras" />
       </div>
     </main>
   );

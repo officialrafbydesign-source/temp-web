@@ -10,28 +10,31 @@ type AdminLayoutProps = {
 };
 
 export default function AdminLayout({ children, active }: AdminLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navItems = [
     { name: "Dashboard", href: "/admin", key: "dashboard" },
     { name: "Beats", href: "/admin/beats", key: "beats" },
     { name: "Music Management", href: "/admin/music-management", key: "music" },
+    { name: "Artists & Release Content", href: "/admin/music-hub", key: "music-hub" },
     { name: "Bookings & Enquiries", href: "/admin/bookings", key: "bookings" }, // <-- Updated path and key
     { name: "Orders", href: "/admin/orders", key: "orders" },
     { name: "Clothing Store", href: "/admin/clothing", key: "clothing" },
   ];
 
   return (
-    <div className="flex min-h-screen bg-zinc-900 text-white">
+    <div className="flex min-h-screen flex-col bg-zinc-900 pt-24 text-white md:flex-row">
       {/* Sidebar Navigation */}
       <aside
-        className={`bg-zinc-800 w-64 p-6 transition-transform duration-300 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-64"
-        }`}
+        className="w-full bg-zinc-800 p-4 md:w-64 md:shrink-0 md:p-6"
       >
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-bold tracking-tight">Admin Portal</h2>
           <button
+            type="button"
+            aria-label="Toggle admin navigation"
+            aria-expanded={sidebarOpen}
+            aria-controls="admin-navigation"
             className="md:hidden text-white text-xl"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
@@ -39,7 +42,7 @@ export default function AdminLayout({ children, active }: AdminLayoutProps) {
           </button>
         </div>
 
-        <nav className="space-y-2">
+        <nav id="admin-navigation" className={`${sidebarOpen ? "block" : "hidden"} space-y-2 md:block`}>
           {navItems.map((item) => (
             <Link
               key={item.key}
@@ -55,14 +58,14 @@ export default function AdminLayout({ children, active }: AdminLayoutProps) {
       </aside>
 
       {/* Main Content Space */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Universal Topbar */}
         <header className="bg-zinc-800 p-4 flex justify-end items-center border-b border-zinc-700">
           <AdminLogout />
         </header>
 
         {/* Dynamic Viewport Layout */}
-        <main className="flex-1 p-6 overflow-auto bg-zinc-100">{children}</main>
+        <main className="flex-1 overflow-auto bg-zinc-100 p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

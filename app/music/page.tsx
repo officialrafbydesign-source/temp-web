@@ -2,6 +2,9 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import ArtistDirectory from "@/components/music/ArtistDirectory";
+import { useAudioStore } from "@/lib/audioStore";
+import { useCart } from "@/app/context/CartContext";
 import { sanitizeCloudinaryUrl } from "@/lib/utils";
 import FadeIn from "@/components/FadeIn";
 
@@ -63,90 +66,6 @@ type MusicRelease = {
   tracks?: Track[];
   songs?: Track[];
 };
-
-const FALLBACK_RELEASES: MusicRelease[] = [
-  {
-    id: "m1",
-    releaseId: "rel-01",
-    title: "NEON SYNTHESIS VOL. 1",
-    artist: "RAF & THE SOUND ENGINE",
-    genre: "Hip-Hop / Synthwave",
-    type: "project",
-    releaseDate: "2026",
-    price: 9.99,
-    badge: "FEATURED ALBUM",
-    coverUrl: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068288/hero-products_cmtloa.jpg",
-    tracks: [
-      { id: "t1", title: "Midnight Frequency", duration: "2:45", price: 1.29, plays: 12400, type: "standard" },
-      { id: "t2", title: "Red Line Overdrive (VIP Remix)", duration: "3:30", price: 1.49, plays: 9800, type: "remix" },
-      { id: "t3", title: "Studio Basement Session (Instrumental)", duration: "4:12", price: 0.99, plays: 15100, type: "instrumental" },
-      { id: "t4", title: "Analog Horizon (Acapella)", duration: "3:58", price: 1.99, plays: 7200, type: "acapella" },
-    ],
-  },
-  {
-    id: "m2",
-    releaseId: "rel-02",
-    title: "DARK TAPE INSTRUMENTALS",
-    artist: "RAF BEAT MATRIX",
-    genre: "Trap / Underground",
-    type: "project",
-    releaseDate: "2026",
-    price: 12.49,
-    badge: "TOP CHARTS #1",
-    coverUrl: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068289/hero-tour_lpvwhy.jpg",
-    tracks: [
-      { id: "t5", title: "808 Warfare", duration: "3:10", price: 1.49, plays: 22100, type: "standard" },
-      { id: "t6", title: "Grid Lock Bounce (Instrumental)", duration: "2:55", price: 1.19, plays: 18400, type: "instrumental" },
-    ],
-  },
-  {
-    id: "m3",
-    releaseId: "rel-03",
-    title: "LO-FI CHRONICLES: CHAPTER II",
-    artist: "STUDIO VIBES",
-    genre: "Lo-Fi / Chill",
-    type: "single",
-    releaseDate: "2026",
-    price: 7.99,
-    badge: "NEW SINGLE",
-    coverUrl: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068288/hero-about_vxgidx.jpg",
-    tracks: [
-      { id: "t7", title: "Rainy Vinyl Groove", duration: "2:15", price: 0.99, plays: 31000, type: "standard" },
-      { id: "t7-remix", title: "Rainy Vinyl Groove (Nightowl Remix)", duration: "2:40", price: 1.29, plays: 11000, type: "remix" },
-    ],
-  },
-  {
-    id: "m4",
-    releaseId: "rel-04",
-    title: "BOOM BAP ARCHIVES 1998",
-    artist: "RAF CLASSIC",
-    genre: "Classic Hip-Hop",
-    type: "project",
-    releaseDate: "2025",
-    price: 10.99,
-    badge: "ESSENTIAL",
-    coverUrl: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784140412/Music_Services_Image_hadkro.png",
-    tracks: [
-      { id: "t8", title: "Concrete Jungle Echoes", duration: "3:40", price: 1.29, plays: 8900, type: "standard" },
-      { id: "t8-acap", title: "Concrete Jungle Echoes (Studio Vocal Stems)", duration: "3:20", price: 1.79, plays: 4100, type: "acapella" },
-    ],
-  },
-  {
-    id: "m5",
-    releaseId: "rel-05",
-    title: "ASTRAL WAVES PROJECT",
-    artist: "RAF & GUESTS",
-    genre: "Ambient / Trap",
-    type: "project",
-    releaseDate: "2026",
-    price: 11.99,
-    badge: "NEW DROP",
-    coverUrl: "https://res.cloudinary.com/dcrkpsnn9/image/upload/v1784068288/hero-products_cmtloa.jpg",
-    tracks: [
-      { id: "t9", title: "Starlight Drift", duration: "3:15", price: 1.39, plays: 14200, type: "standard" },
-    ],
-  },
-];
 
 // Priority score logic: Standard (1) > Remixes (2) > Instrumentals (3) > Acapellas (4)
 function getTrackPriorityScore(track: Track): number {
@@ -217,7 +136,7 @@ function buildUniqueTrackList(
       if (!track?.title) return;
       if (track.sellIndividually === false) return;
 
-      const defaultTrackPrice = Number((1.29 + index * 0.15).toFixed(2));
+      const defaultTrackPrice = 0;
 
       candidates.push({
         ...track,
@@ -227,8 +146,7 @@ function buildUniqueTrackList(
         releaseDate: release.releaseDate,
         genre: release.genre,
         coverUrl: track.coverUrl || release.coverUrl,
-        fileUrl: track.fileUrl || track.audioUrl,
-        audioUrl: track.audioUrl || track.fileUrl,
+        audioUrl: track.audioUrl,
         price:
           track.price !== undefined && track.price !== null
             ? Number(track.price)
@@ -276,11 +194,31 @@ export default function MusicPage() {
   const [selectedGenre, setSelectedGenre] = useState<string>("ALL");
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [maxPrice, setMaxPrice] = useState<number>(25);
-  const [activeTrackPlaying, setActiveTrackPlaying] = useState<string | null>(null);
+  const playing = useAudioStore(state => state.playing);
+  const queue = useAudioStore(state => state.queue);
+  const currentIndex = useAudioStore(state => state.currentIndex);
+  const activeTrackPlaying = playing ? queue[currentIndex]?.id : null;
+  const { addToCart } = useCart();
+  const [addedTrackId, setAddedTrackId] = useState<string | null>(null);
+  function addTrack(track: Track) {
+    if (!track.releaseId || !track.price || track.price <= 0) return;
+    addToCart({ id: track.id, type: "music", title: track.title, price: track.price, quantity: 1, image: track.coverUrl, releaseId: track.releaseId, songId: track.id, purchaseType: "track" });
+    setAddedTrackId(track.id);
+    window.setTimeout(() => setAddedTrackId(null), 1800);
+  }
 
-  // Simulated User Session for recommendations (if logged in)
-  const [userLikes] = useState<string[]>(["t1", "t5", "t7"]);
-  const [isLoggedIn] = useState<boolean>(true);
+  const [userLikes] = useState<string[]>([]);
+  const isLoggedIn = false;
+  const playTrack = useAudioStore(state => state.playTrack);
+  const pause = useAudioStore(state => state.pause);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  function togglePreview(track: Track) {
+    if (!track.audioUrl) return;
+    if (activeTrackPlaying === track.id) { pause(); return; }
+    playTrack({ id: track.id, type: "music", url: track.audioUrl, title: track.title, artwork: track.coverUrl, subtitle: track.artist });
+
+  }
 
   // Pagination offsets for center rows (4 per page)
   const [recentOffset, setRecentOffset] = useState(0);
@@ -295,18 +233,15 @@ export default function MusicPage() {
   useEffect(() => {
     async function fetchMusicStore() {
       try {
-        const res = await fetch("/api/music/release");
-        if (res.ok) {
-          const data = await res.json();
-          const parsed = Array.isArray(data) ? data : data.releases || data.data || [];
-          setReleases(parsed.length > 0 ? parsed : FALLBACK_RELEASES);
-        } else {
-          setReleases(FALLBACK_RELEASES);
-        }
+        const res = await fetch("/api/music/release", { cache: "no-store" });
+        if (!res.ok) throw new Error("Could not load music");
+        const data = await res.json();
+        const parsed = Array.isArray(data) ? data : data.releases || data.data || [];
+        setReleases(parsed);
       } catch (err) {
         console.error("Music storefront fetch error:", err);
-        setReleases(FALLBACK_RELEASES);
-      }
+        setLoadError(true);
+      } finally { setLoading(false); }
     }
     fetchMusicStore();
   }, []);
@@ -344,7 +279,7 @@ export default function MusicPage() {
 
       const matchesType =
         selectedType === "ALL" ||
-        (selectedType === "projects" && (r.type === "project" || r.type === "album" || !r.type)) ||
+        (selectedType === "projects" && (r.type === "project" || r.type === "album" || r.type === "ep" || r.type === "mixtape" || r.type === "compilation" || !r.type)) ||
         (selectedType === "singles" && r.type === "single");
 
       const matchesPrice = (r.price || 0) <= maxPrice;
@@ -356,7 +291,7 @@ export default function MusicPage() {
   // PROJECTS List
   const projectList = useMemo(() => {
     const projs = filteredReleases.filter((r) => r.type !== "single");
-    return projs.length > 0 ? projs : filteredReleases;
+    return projs;
   }, [filteredReleases]);
 
   // Build a real individual-song catalogue from release tracklists.
@@ -415,6 +350,8 @@ export default function MusicPage() {
         getReleaseDateScore(a.releaseDate)
     )[0] || null;
   }, [releases]);
+
+  useEffect(() => { setRecentOffset(0); setProjectOffset(0); setTrackOffset(0); }, [searchQuery, selectedGenre, selectedType, maxPrice]);
 
   // Navigation handlers for row pagination (4 items step)
   const handleNext = (currentOffset: number, setOffset: (val: number) => void, totalLength: number, step = 4) => {
@@ -476,6 +413,12 @@ export default function MusicPage() {
         </div>
       </div>
 
+      <div className="mx-auto max-w-[1800px] px-4 pt-6 md:px-8 lg:px-12">
+        <ArtistDirectory compact />
+        {loading && <p role="status" className="mt-5 rounded-xl bg-black/80 p-4">Loading releases…</p>}
+        {loadError && <p role="alert" className="mt-5 rounded-xl border border-red-700 bg-black/80 p-4">Music could not be loaded. Please refresh to try again.</p>}
+        {!loading && !loadError && releases.length === 0 && <p className="mt-5 rounded-xl bg-black/80 p-4">New releases will appear here when they are available.</p>}
+      </div>
       {/* 3. FEATURED PROJECT / RELEASE BANNER */}
       {featuredRelease && (
         <section className="w-full max-w-[1800px] mx-auto px-4 md:px-8 lg:px-12 pt-6 relative z-10">
@@ -598,7 +541,7 @@ export default function MusicPage() {
               </div>
               <input
                 type="range"
-                min="2"
+                min="0"
                 max="30"
                 step="1"
                 value={maxPrice}
@@ -666,7 +609,7 @@ export default function MusicPage() {
                           </span>
                         )}
                         <span className="absolute bottom-2 right-2 bg-black/90 text-emerald-400 font-black text-xs px-2 py-1 rounded border border-black">
-                          £{(release.price || 9.99).toFixed(2)}
+                          £{(release.price ?? 0).toFixed(2)}
                         </span>
                       </div>
 
@@ -745,7 +688,7 @@ export default function MusicPage() {
                           alt={release.title}
                         />
                         <span className="absolute bottom-1 right-1 bg-black/90 text-emerald-400 font-black text-[10px] px-1.5 py-0.5 rounded border border-black">
-                          £{(release.price || 9.99).toFixed(2)}
+                          £{(release.price ?? 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="p-2 sm:p-2.5 space-y-0.5">
@@ -819,16 +762,17 @@ export default function MusicPage() {
                           alt={track.title}
                         />
                         <button
-                          onClick={() =>
-                            setActiveTrackPlaying(activeTrackPlaying === track.id ? null : track.id)
-                          }
-                          className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-emerald-400 text-3xl font-bold"
+                          type="button"
+                          disabled={!track.audioUrl}
+                          aria-label={`${activeTrackPlaying === track.id ? "Pause" : "Play"} ${track.title}`}
+                          onClick={() => togglePreview(track)}
+                          className="absolute inset-0 bg-black/50 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 disabled:opacity-30 transition-opacity flex items-center justify-center text-emerald-400 text-3xl font-bold"
                         >
                           {activeTrackPlaying === track.id ? "⏸" : "▶"}
                         </button>
                         {/* Displays the individual track's distinct price */}
                         <span className="absolute bottom-1 right-1 bg-black/90 text-emerald-400 font-black text-[10px] px-1.5 py-0.5 rounded border border-black">
-                          £{(track.price || 1.29).toFixed(2)}
+                          £{(track.price ?? 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="p-2 sm:p-2.5 space-y-0.5">
@@ -839,8 +783,8 @@ export default function MusicPage() {
                       </div>
                     </div>
                     <div className="p-2 pt-0 sm:p-2.5 sm:pt-0">
-                      <button className="w-full py-1 sm:py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-center text-[10px] sm:text-xs font-black uppercase rounded border border-black block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                        BUY SONG (£{(track.price || 1.29).toFixed(2)})
+                      <button type="button" onClick={() => addTrack(track)} disabled={!track.price || track.price <= 0} className="w-full py-1 sm:py-1.5 disabled:opacity-50 bg-emerald-500 hover:bg-emerald-400 text-black text-center text-[10px] sm:text-xs font-black uppercase rounded border border-black block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        {addedTrackId === track.id ? "ADDED ✓" : `BUY SONG (£${(track.price ?? 0).toFixed(2)})`}
                       </button>
                     </div>
                   </div>
@@ -883,12 +827,11 @@ export default function MusicPage() {
                         />
 
                         <button
-                          onClick={() =>
-                            setActiveTrackPlaying(
-                              activeTrackPlaying === track.id ? null : track.id
-                            )
-                          }
-                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-emerald-400 text-xs"
+                          type="button"
+                          disabled={!track.audioUrl}
+                          aria-label={`${activeTrackPlaying === track.id ? "Pause" : "Play"} ${track.title}`}
+                          onClick={() => togglePreview(track)}
+                          className="absolute inset-0 bg-black/60 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 disabled:opacity-30 transition-opacity flex items-center justify-center text-emerald-400 text-xs"
                         >
                           {activeTrackPlaying === track.id ? "⏸" : "▶"}
                         </button>
@@ -913,7 +856,7 @@ export default function MusicPage() {
 
                     <div className="text-right flex-shrink-0">
                       <span className="block text-xs text-emerald-400 font-black">
-                        £{(track.price || 1.29).toFixed(2)}
+                        £{(track.price ?? 0).toFixed(2)}
                       </span>
 
                       {track.releaseId ? (

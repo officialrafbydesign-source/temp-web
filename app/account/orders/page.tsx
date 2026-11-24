@@ -41,6 +41,8 @@ export default async function AccountOrdersPage() {
     redirect("/login");
   }
 
+  const hasArtistAccess = Boolean(user.emailVerifiedAt && await prisma.artistAccess.findFirst({ where: { userId: user.id, isActive: true }, select: { id: true } }));
+
   const orders = await prisma.order.findMany({
     where: {
       userId: user.id,
@@ -99,6 +101,7 @@ export default async function AccountOrdersPage() {
               </section>
             )}
 
+            {hasArtistAccess && <section className="mt-6 rounded-xl border-2 border-black bg-emerald-50 p-5"><h2 className="text-xl font-black">Artist dashboard</h2><p className="mt-2 text-zinc-700">Manage your drafts, submit tracks and view feedback from RAF.</p><Link href="/artist" className="mt-4 inline-flex rounded-lg bg-emerald-800 px-5 py-3 font-bold text-white">Open Artist Dashboard</Link></section>}
             {orders.length === 0 ? (
               <div className="py-12 text-center">
                 <h2 className="text-2xl font-black">

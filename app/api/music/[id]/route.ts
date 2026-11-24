@@ -2,6 +2,7 @@ import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVi
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_SONG_SELECT } from "@/lib/musicHubServer";
 
 type MusicRouteContext = {
   params: Promise<{
@@ -29,6 +30,7 @@ export async function GET(
               artist: true,
 
               songs: {
+                select: PUBLIC_SONG_SELECT,
                 orderBy: {
                   trackNo:
                     "asc",
@@ -88,6 +90,7 @@ export async function GET(
           artist: true,
 
           songs: {
+            select: PUBLIC_SONG_SELECT,
             orderBy: {
               trackNo:
                 "asc",

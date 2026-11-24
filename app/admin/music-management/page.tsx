@@ -3,8 +3,11 @@
 import CatalogueActions from "../components/CatalogueActions";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import AdminLayout from "../components/AdminLayout";
 import { duplicateTracks } from "@/lib/catalogueDuplication";
+import TrackShareLinks from "@/components/music/TrackShareLinks";
+import { MusicSaveInterrupted, saveMusicProduct } from "@/lib/musicProductSave";
 
 type Track = {
   id?: string;
@@ -29,12 +32,24 @@ const emptyTrack = (trackNo = 1): Track => ({
   sellIndividually: true,
 });
 
+function ReleaseTrackLinks({ songs, published }: { songs: { id: string; title: string }[]; published: boolean }) {
+  if (!songs.length) return null;
+  return <details className="mt-3 text-sm text-zinc-700">
+    <summary className="cursor-pointer font-bold text-emerald-800">Track story links ({songs.length})</summary>
+    {!published && <p className="mt-2 text-amber-800">Publish this release before using these links in stories.</p>}
+    <ul className="mt-3 space-y-4">{songs.map(song => <li key={song.id} className="min-w-0">
+      <p className="mb-2 font-bold">{song.title}</p><TrackShareLinks id={song.id} />
+    </li>)}</ul>
+  </details>;
+}
+
 export default function MusicManagementPage() {
   const [musicProducts, setMusicProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [featuringId, setFeaturingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [saveInterrupted, setSaveInterrupted] = useState(false);
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -61,13 +76,16 @@ export default function MusicManagementPage() {
   const [albumZipUrl, setAlbumZipUrl] = useState("");
   const [tracks, setTracks] = useState<Track[]>([emptyTrack(1)]);
 
-  async function fetchMusicProducts() {
+  async function fetchMusicProducts(announce = false) {
     try {
       const res = await fetch("/api/admin/music-products");
       const data = await res.json();
-      if (Array.isArray(data)) setMusicProducts(data);
+      if (!res.ok || !Array.isArray(data)) throw new Error(data?.error || "Unable to load releases");
+      setMusicProducts(data);
+      if (announce) setMessage("The saved release list has been refreshed. Your form is unchanged. Check the stored version before saving again.");
     } catch (err) {
       console.error(err);
+      if (announce) setMessage("The saved release list could not be refreshed. Keep this form open and check that npm run dev is still running.");
     } finally {
       setLoading(false);
     }
@@ -345,14 +363,13 @@ export default function MusicManagementPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     setSubmitting(true);
     setMessage("");
+    setSaveInterrupted(false);
 
     try {
-      const res = await fetch("/api/admin/music-products", {
-        method: editingId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const data = await saveMusicProduct({
           id: editingId,
           title,
           artist,
@@ -369,12 +386,7 @@ export default function MusicManagementPage() {
           description,
           albumZipUrl,
           tracks,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || "Save failed");
+        }, Boolean(editingId));
 
       if (editingId) {
         setMusicProducts((prev) =>
@@ -388,8 +400,8 @@ export default function MusicManagementPage() {
 
       resetForm();
     } catch (err) {
-      console.error(err);
-      setMessage("❌ Failed to save music release. Check terminal logs.");
+      setSaveInterrupted(err instanceof MusicSaveInterrupted);
+      setMessage(`❌ ${err instanceof Error ? err.message : "Unable to save. Your changes are still in this form."}`);
     } finally {
       setSubmitting(false);
     }
@@ -416,14 +428,16 @@ export default function MusicManagementPage() {
           </div>
         </div>
 
+        <Link href="/admin/music-hub" className="inline-flex rounded-lg bg-emerald-800 px-5 py-3 font-bold text-white">Artist pages, release extras & artist accounts →</Link>
         {/* Dynamic Feedback Banner */}
         {message && (
-          <div className={`p-4 rounded-xl border text-sm font-medium transition-all ${
+          <div role="status" className={`p-4 rounded-xl border text-sm font-medium transition-all ${
             message.includes("❌")
               ? "bg-red-50 border-red-200 text-red-800"
               : "bg-emerald-50 border-emerald-200 text-emerald-800"
           }`}>
             {message}
+            {saveInterrupted && <button type="button" onClick={() => fetchMusicProducts(true)} className="ml-3 rounded-lg border border-current px-3 py-2 font-bold">Refresh saved release list</button>}
           </div>
         )}
 
@@ -595,6 +609,8 @@ export default function MusicManagementPage() {
                       <input className="w-full border border-zinc-200 p-2.5 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Full-quality WAV/MP3 customer download URL" value={track.fileUrl} onChange={(e) => updateTrack(index, "fileUrl", e.target.value)} />
                     </div>
 
+                    {track.id && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-emerald-950"><p className="mb-2 text-sm font-bold">Track page for social stories</p><TrackShareLinks id={track.id} /></div>}
+
                     {track.audioUrl && (
                       <div className="bg-white p-2 border rounded-lg shadow-inner">
                         <audio controls className="w-full h-8 opacity-80">
@@ -756,6 +772,7 @@ export default function MusicManagementPage() {
                             )}
                           </div>
                           <p className="text-xs text-zinc-400 font-mono mt-0.5">{p.release?.catalogNo || "No Cat #"}</p>
+                          <ReleaseTrackLinks songs={p.release?.songs || []} published={p.isPublished !== false} />
                         </td>
                         <td className="p-4 font-medium text-zinc-700">{p.release?.artist?.name || "Unknown Artist"}</td>
                         <td className="p-4">
@@ -819,6 +836,7 @@ export default function MusicManagementPage() {
 
                     <h3 className="font-extrabold text-zinc-800 text-base truncate">{p.release?.title || "Untitled"}</h3>
                     <p className="text-xs font-semibold text-zinc-500 truncate mt-0.5">{p.release?.artist?.name || "Unknown Artist"}</p>
+                    <ReleaseTrackLinks songs={p.release?.songs || []} published={p.isPublished !== false} />
 
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-zinc-100 text-xs">
                       <span className="text-zinc-400 font-mono">{p.release?.genre || "No Genre"}</span>

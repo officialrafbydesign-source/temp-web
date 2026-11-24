@@ -3,6 +3,7 @@ import { catalogueAdminAction } from "@/lib/catalogueAdmin";
 import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_SONG_SELECT } from "@/lib/musicHubServer";
 
 // Cleans Cloudinary Console URLs if passed, otherwise returns the clean public URL
 function cleanCloudinaryUrl(url: string | null | undefined): string | null {
@@ -64,14 +65,14 @@ export async function GET() {
         release: {
           include: {
             artist: true,
-            songs: { orderBy: { trackNo: "asc" } },
+            songs: { select: PUBLIC_SONG_SELECT, orderBy: { trackNo: "asc" } },
           },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(products);
+    return NextResponse.json(products.map(({ fileUrl, ...product }) => ({ ...product, downloadAvailable: Boolean(fileUrl) })));
   } catch (err) {
     console.error("GET music products error:", err);
     return NextResponse.json({ error: "Failed to fetch music products" }, { status: 500 });

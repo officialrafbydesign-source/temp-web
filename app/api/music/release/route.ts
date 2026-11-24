@@ -1,6 +1,7 @@
 import { PUBLIC_CATALOGUE_WHERE, isPublicCatalogueItem } from "@/lib/catalogueVisibility";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_SONG_SELECT } from "@/lib/musicHubServer";
 
 export async function GET() {
   try {
@@ -11,6 +12,7 @@ export async function GET() {
           include: {
             artist: true,
             songs: {
+              select: PUBLIC_SONG_SELECT,
               orderBy: { trackNo: "asc" },
             },
           },
@@ -27,6 +29,9 @@ export async function GET() {
 
       title: product.release.title,
       artist: product.release.artist?.name ?? "Unknown Artist",
+      artistId: product.release.artistId,
+      artistSlug: product.release.artist.slug,
+      hasArtistPage: product.release.artist.isProfilePublished,
 
       coverUrl: product.release.coverUrl,
       bannerUrl: product.release.coverUrl,
@@ -39,7 +44,7 @@ export async function GET() {
       price: product.price,
       itemType: product.itemType,
       stock: product.stock ?? null,
-      fileUrl: product.fileUrl,
+      downloadAvailable: Boolean(product.fileUrl),
 
       genre: product.release.genre,
       upc: product.release.upc,

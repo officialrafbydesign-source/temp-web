@@ -3,6 +3,7 @@ import "server-only";
 import {
   S3Client,
   GetObjectCommand,
+  PutObjectCommand,
 } from "@aws-sdk/client-s3";
 
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -36,6 +37,9 @@ export const privateBucketName =
 
 export const r2Client = new S3Client({
   region: "auto",
+  // Presigned PUTs are created before the browser supplies the body. Avoid
+  // attaching the SDK's optional CRC32 checksum for an empty signing body.
+  requestChecksumCalculation: "WHEN_REQUIRED",
 
   endpoint:
     `https://${accountId}.r2.cloudflarestorage.com`,
@@ -113,4 +117,17 @@ export async function getPresignedDownloadUrl(
       expiresIn: safeExpiry,
     }
   );
+}
+
+/** Media access is checked by the caller before signing. Keep the bucket
+ * private; inline disposition lets authorised audio/video players stream it. */
+export async function getPresignedMediaUrl(fileKey: string, download = false): Promise<string> {
+  if (download) return getPresignedDownloadUrl(fileKey);
+  const command = new GetObjectCommand({ Bucket: privateBucketName, Key: cleanPrivateObjectKey(fileKey) });
+  return getSignedUrl(r2Client, command, { expiresIn: 300 });
+}
+
+export async function getArtistUploadUrl(fileKey: string, contentType: string, byteSize: number): Promise<string> {
+  const command = new PutObjectCommand({ Bucket: privateBucketName, Key: cleanPrivateObjectKey(fileKey), ContentType: contentType, ContentLength: byteSize });
+  return getSignedUrl(r2Client, command, { expiresIn: 600, signableHeaders: new Set(["content-type", "content-length"]) });
 }
