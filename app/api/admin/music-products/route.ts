@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { musicProductError } from "@/lib/musicProductErrors";
 import { musicDownloadFilesInput } from "@/lib/musicDownloadFiles";
 import { catalogueAdminAction } from "@/lib/catalogueAdmin";
 import {
@@ -15,6 +16,9 @@ import {
 
 export const dynamic =
   "force-dynamic";
+
+// Remote database round trips must fit inside one bounded, atomic catalogue save.
+const musicSaveTransactionOptions = { maxWait: 10000, timeout: 20000 };
 
 function jsonResponse(
   body: unknown,
@@ -739,7 +743,8 @@ export async function POST(
               },
             },
           });
-        }
+        },
+        musicSaveTransactionOptions
       );
 
     return jsonResponse(
@@ -752,13 +757,8 @@ export async function POST(
       error
     );
 
-    return jsonResponse(
-      {
-        error:
-          "Failed to create music product",
-      },
-      500
-    );
+    const failure = musicProductError(error);
+    return jsonResponse(failure.body, failure.status);
   }
 }
 
@@ -1028,7 +1028,8 @@ export async function PUT(
               },
             },
           });
-        }
+        },
+        musicSaveTransactionOptions
       );
 
     return jsonResponse(
@@ -1040,13 +1041,8 @@ export async function PUT(
       error
     );
 
-    return jsonResponse(
-      {
-        error:
-          "Failed to update music product",
-      },
-      500
-    );
+    const failure = musicProductError(error);
+    return jsonResponse(failure.body, failure.status);
   }
 }
 
