@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getPresignedDownloadUrl } from "@/lib/r2";
+import { chooseMusicFile } from "@/lib/musicDownloadFiles";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,8 @@ export async function GET(
   { params }: DownloadRouteContext
 ) {
   try {
+    const format = new URL(req.url).searchParams.get("format");
+    if (format && !["mp3", "wav", "original"].includes(format)) return NextResponse.json({ error: "Choose MP3 or WAV." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     const user = await getCurrentUser();
 
     if (!user) {
@@ -197,12 +200,12 @@ export async function GET(
 
           select: {
             fileUrl: true,
+            downloadFiles: true,
           },
         });
 
       if (song) {
-        storedFileReference =
-          song.fileUrl;
+        storedFileReference = chooseMusicFile(song.downloadFiles, song.fileUrl, "track", format);
       } else {
         const musicProduct =
           await prisma.musicProduct.findUnique(
@@ -214,6 +217,7 @@ export async function GET(
               select: {
                 fileUrl: true,
                 itemType: true,
+                downloadFiles: true,
               },
             }
           );
@@ -224,8 +228,7 @@ export async function GET(
             .toUpperCase() !==
             "PHYSICAL"
         ) {
-          storedFileReference =
-            musicProduct.fileUrl;
+          storedFileReference = chooseMusicFile(musicProduct.downloadFiles, musicProduct.fileUrl, "release", format);
         }
       }
     } else {

@@ -14,6 +14,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       signedIn: Boolean(user), owned: Boolean(purchase),
       downloadHref: purchase?.downloadHref || null,
       releaseDownloadHref: purchase?.releaseDownloadHref || null,
+      trackDownloads: purchase?.trackDownloads || [],
+      releaseDownloads: purchase?.releaseDownloads || [],
+      ownsRelease: purchase?.ownsRelease || false,
     }, { headers });
   } catch (error) {
     console.error("Unable to check track downloads:", error instanceof Error ? error.name : "UnknownError");

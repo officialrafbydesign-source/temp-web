@@ -72,7 +72,7 @@ test('hidden, deleted and missing tracks are unavailable publicly', async () => 
 });
 test('anonymous download checks contain no purchase information and make no database calls', async () => {
   const response = await accessRoute.GET(request(), context());
-  assert.deepEqual(await response.json(), { signedIn: false, owned: false, downloadHref: null, releaseDownloadHref: null });
+  assert.deepEqual(await response.json(), { signedIn: false, owned: false, downloadHref: null, releaseDownloadHref: null, trackDownloads: [], releaseDownloads: [], ownsRelease: false });
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal(state.calls.length, 0);
 });

@@ -3,6 +3,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { PUBLIC_CATALOGUE_WHERE } from "@/lib/catalogueVisibility";
 import { musicTrackPath } from "@/lib/musicTrackLinks";
+import { chooseMusicFile, musicDownloadChoices } from "@/lib/musicDownloadFiles";
 
 // Select public fields explicitly. Private download keys never enter page props.
 export const getPublicMusicTrack = cache(async (id: string) => {
@@ -35,8 +36,8 @@ export async function getMusicTrackPurchase(userId: string, songId: string) {
   const song = await prisma.song.findUnique({
     where: { id: songId },
     select: {
-      id: true, fileUrl: true,
-      release: { select: { product: { select: { id: true, itemType: true, fileUrl: true } } } },
+      id: true, fileUrl: true, downloadFiles: true,
+      release: { select: { product: { select: { id: true, itemType: true, fileUrl: true, downloadFiles: true } } } },
     },
   });
   if (!song) return null;
@@ -62,10 +63,19 @@ export async function getMusicTrackPurchase(userId: string, songId: string) {
     ? `/api/account/orders/${encodeURIComponent(releaseItem.orderId)}/items/${encodeURIComponent(releaseItem.id)}/download`
     : null;
 
+  const trackBase = `/api/music/tracks/${encodeURIComponent(songId)}/download`;
+  const trackDownloads = musicDownloadChoices(song.downloadFiles, song.fileUrl, "track", trackBase);
+  const releaseBase = releaseItem ? `/api/account/orders/${encodeURIComponent(releaseItem.orderId)}/items/${encodeURIComponent(releaseItem.id)}/download` : null;
+  const releaseDownloads = releaseBase ? musicDownloadChoices(digitalProduct?.downloadFiles, digitalProduct?.fileUrl, "release", releaseBase) : [];
+
   return {
     trackFileKey,
     downloadHref: trackFileKey ? `/api/music/tracks/${encodeURIComponent(songId)}/download` : null,
     releaseDownloadHref,
+    trackDownloads,
+    releaseDownloads,
+    ownsRelease: Boolean(releaseItem),
+    resolveTrackFile: (format?: string | null) => chooseMusicFile(song.downloadFiles, song.fileUrl, "track", format),
     returnTo: musicTrackPath(songId),
   };
 }

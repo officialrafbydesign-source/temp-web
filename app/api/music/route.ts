@@ -72,7 +72,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(products.map(({ fileUrl, ...product }) => ({ ...product, downloadAvailable: Boolean(fileUrl) })));
+    return NextResponse.json(products.map(({ fileUrl, downloadFiles, ...product }) => ({ ...product, downloadAvailable: Boolean(fileUrl || (downloadFiles && typeof downloadFiles === "object" && Object.keys(downloadFiles).length)) })));
   } catch (err) {
     console.error("GET music products error:", err);
     return NextResponse.json({ error: "Failed to fetch music products" }, { status: 500 });

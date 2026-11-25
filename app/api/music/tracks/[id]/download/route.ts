@@ -16,6 +16,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const trackUrl = new URL(musicTrackPath(id), request.url);
   try {
+    const format = new URL(request.url).searchParams.get("format");
+    if (format && !["mp3", "wav", "original"].includes(format)) return NextResponse.json({ error: "Choose MP3 or WAV." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     const user = await getCurrentUser();
     if (!user) {
       const login = new URL("/login", request.url);
@@ -24,10 +26,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
     // Recheck ownership on every click, including for hidden previously bought releases.
     const purchase = await getMusicTrackPurchase(user.id, id);
-    if (purchase?.trackFileKey) {
-      return privateRedirect(await getPresignedDownloadUrl(purchase.trackFileKey));
+    const fileKey = purchase?.resolveTrackFile(format);
+    if (fileKey) {
+      return privateRedirect(await getPresignedDownloadUrl(fileKey));
     }
-    if (purchase?.releaseDownloadHref) {
+    if (!format && purchase?.releaseDownloads.length) {
+      return privateRedirect(new URL(purchase.releaseDownloads[0].url, request.url));
+    }
+    if (!format && purchase?.releaseDownloadHref) {
       return privateRedirect(new URL(purchase.releaseDownloadHref, request.url));
     }
     trackUrl.searchParams.set("download", purchase ? "pending" : "purchase-required");

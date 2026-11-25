@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import MusicExtras from "@/components/music/MusicExtras";
+import ReleaseDownloadOptions from "@/components/music/ReleaseDownloadOptions";
 import { hubLinks } from "@/lib/musicHub";
 import { musicTrackPath } from "@/lib/musicTrackLinks";
 import { useParams } from "next/navigation";
@@ -734,6 +735,7 @@ export default function MusicReleaseDetailPage() {
             </p>
           )}
         </section>
+        <ReleaseDownloadOptions releaseId={product.releaseId} />
         <MusicExtras releaseId={product.releaseId} returnTo={`/music/${encodeURIComponent(product.releaseId)}`} title="Artwork, videos & extras" />
       </div>
     </main>

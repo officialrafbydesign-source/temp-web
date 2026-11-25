@@ -224,6 +224,7 @@ model Song {
   duration         Int?
   audioUrl         String?
   fileUrl          String?
+  downloadFiles    Json?
   isrc             String?
   trackNo          Int?
   price            Float?
@@ -251,6 +252,7 @@ model MusicProduct {
   stock    Int?
 
   fileUrl String?
+  downloadFiles Json?
 
   createdAt DateTime @default(now())
 }

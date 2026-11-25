@@ -52,7 +52,7 @@ export async function GET() {
 
     return NextResponse.json({
       beats,
-      music: musicProducts.map(({ fileUrl, ...product }) => ({ ...product, downloadAvailable: Boolean(fileUrl) })),
+      music: musicProducts.map(({ fileUrl, downloadFiles, ...product }) => ({ ...product, downloadAvailable: Boolean(fileUrl || (downloadFiles && typeof downloadFiles === "object" && Object.keys(downloadFiles).length)) })),
       clothing: products,
     });
   } catch (error) {

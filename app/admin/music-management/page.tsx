@@ -7,6 +7,8 @@ import Link from "next/link";
 import AdminLayout from "../components/AdminLayout";
 import { duplicateTracks } from "@/lib/catalogueDuplication";
 import TrackShareLinks from "@/components/music/TrackShareLinks";
+import AdminMusicFile from "@/components/music/AdminMusicFile";
+import { storedMusicDownloads, type MusicDownloadFiles } from "@/lib/musicDownloadFiles";
 import { MusicSaveInterrupted, saveMusicProduct } from "@/lib/musicProductSave";
 
 type Track = {
@@ -16,6 +18,7 @@ type Track = {
   duration: string;
   audioUrl: string;
   fileUrl: string;
+  downloadFiles: MusicDownloadFiles;
   isrc: string;
   price: string;
   sellIndividually: boolean;
@@ -27,6 +30,7 @@ const emptyTrack = (trackNo = 1): Track => ({
   duration: "",
   audioUrl: "",
   fileUrl: "",
+  downloadFiles: {},
   isrc: "",
   price: "0.99",
   sellIndividually: true,
@@ -74,6 +78,9 @@ export default function MusicManagementPage() {
   const [catalogNo, setCatalogNo] = useState("");
   const [description, setDescription] = useState("");
   const [albumZipUrl, setAlbumZipUrl] = useState("");
+  const [releaseDownloads, setReleaseDownloads] = useState<MusicDownloadFiles>({});
+  const [uploadCount, setUploadCount] = useState(0);
+  const uploadBusy = (busy: boolean) => setUploadCount(count => Math.max(0, count + (busy ? 1 : -1)));
   const [tracks, setTracks] = useState<Track[]>([emptyTrack(1)]);
 
   async function fetchMusicProducts(announce = false) {
@@ -169,6 +176,7 @@ export default function MusicManagementPage() {
     });
 
   function resetForm() {
+    if (uploadCount) return;
     setEditingId(null);
     setCopyingTitle(null);
     setTitle("");
@@ -185,6 +193,7 @@ export default function MusicManagementPage() {
     setCatalogNo("");
     setDescription("");
     setAlbumZipUrl("");
+    setReleaseDownloads({});
     setTracks([emptyTrack(1)]);
   }
 
@@ -198,7 +207,7 @@ export default function MusicManagementPage() {
     setSearch("");
   }
 
-  function updateTrack(index: number, field: keyof Track, value: string | boolean) {
+  function updateTrack(index: number, field: keyof Track, value: string | boolean | MusicDownloadFiles) {
     setTracks((prev) =>
       prev.map((track, i) => (i === index ? { ...track, [field]: value } : track))
     );
@@ -209,10 +218,12 @@ export default function MusicManagementPage() {
   }
 
   function addTrackRow() {
+    if (uploadCount) { setMessage("Finish or pause active uploads before changing releases or track rows."); return; }
     setTracks((prev) => [...prev, emptyTrack(prev.length + 1)]);
   }
 
   function removeTrackRow(index: number) {
+    if (uploadCount) { setMessage("Finish or pause active uploads before changing releases or track rows."); return; }
     setTracks((prev) =>
       prev
         .filter((_, i) => i !== index)
@@ -221,6 +232,7 @@ export default function MusicManagementPage() {
   }
 
   function handleEdit(product: any) {
+    if (uploadCount) { setMessage("Finish or pause active uploads before changing releases or track rows."); return; }
     const release = product.release;
 
     setEditingId(product.id);
@@ -238,6 +250,7 @@ export default function MusicManagementPage() {
     setCatalogNo(release?.catalogNo || "");
     setDescription(release?.description || "");
     setAlbumZipUrl(product.fileUrl || "");
+    setReleaseDownloads(storedMusicDownloads(product.downloadFiles, product.fileUrl, "release"));
 
     if (release?.releaseDate) {
       setReleaseDate(new Date(release.releaseDate).toISOString().split("T")[0]);
@@ -254,6 +267,7 @@ export default function MusicManagementPage() {
             duration: song.duration ? String(song.duration) : "",
             audioUrl: song.audioUrl || "",
             fileUrl: song.fileUrl || "",
+            downloadFiles: storedMusicDownloads(song.downloadFiles, song.fileUrl, "track"),
             isrc: song.isrc || "",
             price: song.price !== null && song.price !== undefined ? String(song.price) : "0.99",
             sellIndividually: Boolean(song.sellIndividually),
@@ -265,6 +279,7 @@ export default function MusicManagementPage() {
   }
 
   function handleDuplicate(product: any) {
+    if (uploadCount) { setMessage("Finish or pause active uploads before changing releases or track rows."); return; }
     handleEdit(product);
     setEditingId(null);
     setCopyingTitle(product.release?.title || "Untitled");
@@ -364,6 +379,7 @@ export default function MusicManagementPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
+    if (uploadCount) { setMessage("Finish or pause active uploads before saving the release."); return; }
     setSubmitting(true);
     setMessage("");
     setSaveInterrupted(false);
@@ -385,6 +401,7 @@ export default function MusicManagementPage() {
           catalogNo,
           description,
           albumZipUrl,
+          downloadFiles: releaseDownloads,
           tracks,
         }, Boolean(editingId));
 
@@ -550,10 +567,12 @@ export default function MusicManagementPage() {
               <textarea className="w-full border border-zinc-200 p-2.5 rounded-lg text-sm bg-zinc-50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Add specific liners, promotional descriptors, or general commentary..." value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1 block">Complete Distribution Package ZIP / Archive Link</label>
-              <input className="w-full border border-zinc-200 p-2.5 rounded-lg text-sm bg-zinc-50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="High-quality direct download archive asset link (ZIP)" value={albumZipUrl} onChange={(e) => setAlbumZipUrl(e.target.value)} />
-            </div>
+            <section className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <h3 className="text-lg font-bold">Private release downloads</h3>
+              <p className="text-sm leading-6 text-zinc-600">One release purchase includes both formats you add here. Tag the individual songs before building each ZIP.</p>
+              <div className="grid gap-4 lg:grid-cols-2">{(["mp3", "wav"] as const).map(format => <AdminMusicFile key={format} kind="release" format={format} value={releaseDownloads[format]} onBusy={uploadBusy} onChange={file => setReleaseDownloads(current => { const next = { ...current }; if (file) next[format] = file; else delete next[format]; return next; })} />)}</div>
+              {albumZipUrl && <details className="text-sm"><summary className="cursor-pointer font-bold">Existing legacy release download</summary><input aria-label="Legacy release download reference" className="mt-2 w-full rounded-lg border p-2" value={albumZipUrl} onChange={event => setAlbumZipUrl(event.target.value)} /><p className="mt-1 text-zinc-600">This reference is retained while you add the format-specific ZIP files.</p></details>}
+            </section>
 
             {/* Individual Tracks Segment */}
             <div className="space-y-4 pt-4 border-t border-zinc-100">
@@ -604,10 +623,8 @@ export default function MusicManagementPage() {
 
                     </div>
 
-                    <div>
-                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1 block">Paid Full-Quality Download URL</label>
-                      <input className="w-full border border-zinc-200 p-2.5 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Full-quality WAV/MP3 customer download URL" value={track.fileUrl} onChange={(e) => updateTrack(index, "fileUrl", e.target.value)} />
-                    </div>
+                    <div className="grid gap-4 lg:grid-cols-2">{(["mp3", "wav"] as const).map(format => <AdminMusicFile key={format} kind="track" format={format} value={track.downloadFiles[format]} onBusy={uploadBusy} onChange={file => { const next = { ...track.downloadFiles }; if (file) next[format] = file; else delete next[format]; updateTrack(index, "downloadFiles", next); }} />)}</div>
+                    {track.fileUrl && <details className="text-sm text-zinc-600"><summary className="cursor-pointer font-bold">Existing legacy download reference</summary><input aria-label="Legacy track download reference" value={track.fileUrl} onChange={event => updateTrack(index, "fileUrl", event.target.value)} className="mt-2 w-full rounded-lg border p-2" />{/^https?:\/\//i.test(track.fileUrl) && <p className="mt-2 text-amber-800">This is a public URL. Keep the public streaming audio above and add private paid-download files using the MP3/WAV controls.</p>}</details>}
 
                     {track.id && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-emerald-950"><p className="mb-2 text-sm font-bold">Track page for social stories</p><TrackShareLinks id={track.id} /></div>}
 
@@ -638,8 +655,8 @@ export default function MusicManagementPage() {
           </div>
 
           <div className="bg-zinc-50 border-t border-zinc-100 px-6 py-4 flex flex-col sm:flex-row gap-3">
-            <button type="submit" disabled={submitting} className="flex-1 bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 shadow-sm transition-all disabled:opacity-50 text-sm tracking-wide">
-              {submitting ? "Processing Asset Storage..." : editingId ? "Save Catalog Mutations" : "Publish to Global Inventory"}
+            <button type="submit" disabled={submitting || uploadCount > 0} className="flex-1 bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 shadow-sm transition-all disabled:opacity-50 text-sm tracking-wide">
+              {uploadCount ? "Uploads in progress…" : submitting ? "Saving…" : editingId ? "Save Catalog Mutations" : "Publish to Global Inventory"}
             </button>
 
             {(editingId || copyingTitle) && (

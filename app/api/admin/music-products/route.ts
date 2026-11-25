@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+import { musicDownloadFilesInput } from "@/lib/musicDownloadFiles";
 import { catalogueAdminAction } from "@/lib/catalogueAdmin";
 import {
   NextResponse,
@@ -287,6 +289,7 @@ function normaliseTracks(
               : null,
 
           data: {
+            downloadFiles: track.downloadFiles === undefined ? undefined : musicDownloadFilesInput(track.downloadFiles, "track") as Prisma.InputJsonValue,
             title:
               cleanRequiredString(
                 track.title
@@ -382,6 +385,14 @@ function hasInvalidTrackUrl(
 function validateProductInput(
   body: any
 ) {
+  try {
+    if (body.downloadFiles !== undefined) musicDownloadFilesInput(body.downloadFiles, "release");
+    if (Array.isArray(body.tracks)) for (const track of body.tracks) {
+      if (track?.downloadFiles !== undefined) musicDownloadFilesInput(track.downloadFiles, "track");
+    }
+  } catch (error) {
+    return { valid: false as const, error: error instanceof Error ? error.message : "Invalid download files." };
+  }
   const title =
     cleanRequiredString(
       body.title
@@ -531,6 +542,7 @@ function validateProductInput(
         cleanOptionalString(
           body.albumZipUrl
         ),
+      downloadFiles: body.downloadFiles === undefined ? undefined : musicDownloadFilesInput(body.downloadFiles, "release") as Prisma.InputJsonValue,
 
       tracks:
         body.tracks,
@@ -643,6 +655,7 @@ export async function POST(
       catalogNo,
       releaseDate,
       albumZipUrl,
+      downloadFiles,
       tracks,
     } = validation.data;
 
@@ -716,6 +729,7 @@ export async function POST(
 
               fileUrl:
                 albumZipUrl,
+              downloadFiles,
             },
 
             include: {
@@ -811,6 +825,7 @@ export async function PUT(
       catalogNo,
       releaseDate,
       albumZipUrl,
+      downloadFiles,
       tracks,
     } = validation.data;
 
@@ -1003,6 +1018,7 @@ export async function PUT(
 
               fileUrl:
                 albumZipUrl,
+              downloadFiles,
             },
 
             include: {

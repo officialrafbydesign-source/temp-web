@@ -1,3 +1,4 @@
+import { musicDownloadChoices, musicFileSize } from "@/lib/musicDownloadFiles";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -128,8 +129,18 @@ export default async function OrderDetailsPage({
     .map((item) => item.productId as string);
   const musicProducts = await prisma.musicProduct.findMany({
     where: { id: { in: musicIds } },
-    select: { id: true, itemType: true },
+    select: { id: true, itemType: true, fileUrl: true, downloadFiles: true },
   });
+  const musicSongs = await prisma.song.findMany({ where: { id: { in: musicIds } }, select: { id: true, fileUrl: true, downloadFiles: true } });
+  const songFiles = new Map(musicSongs.map(song => [song.id, song]));
+  const releaseFiles = new Map(musicProducts.map(product => [product.id, product]));
+  const itemDownloads = new Map(order.items.filter(item => item.productType === "music").map(item => {
+    const song = songFiles.get(item.productId || "");
+    const product = releaseFiles.get(item.productId || "");
+    const row = song || product;
+    const url = `/api/account/orders/${encodeURIComponent(order.id)}/items/${encodeURIComponent(item.id)}/download`;
+    return [item.id, row ? musicDownloadChoices(row.downloadFiles, row.fileUrl, song ? "track" : "release", url) : []] as const;
+  }));
   const physicalMusicIds = new Set(
     musicProducts.filter((product) => String(product.itemType).toUpperCase() === "PHYSICAL")
       .map((product) => product.id)
@@ -225,7 +236,11 @@ export default async function OrderDetailsPage({
                               </p>
                             </div>
 
-                            {isDigital && isFulfilledPayment && (
+                            {isDigital && isFulfilledPayment && item.productType === "music" && <div className="mt-4 flex flex-wrap gap-3">
+                              {itemDownloads.get(item.id)?.map(file => <a key={file.format} href={file.url} className="rounded-lg border-2 border-black bg-red-600 px-5 py-2.5 text-sm font-black text-white hover:bg-red-700">Download {file.label}{file.bytes ? ` · ${musicFileSize(file.bytes)}` : ""}</a>)}
+                              {!itemDownloads.get(item.id)?.length && <p className="text-sm text-zinc-600">The paid-download files have not been added yet.</p>}
+                            </div>}
+                            {isDigital && isFulfilledPayment && item.productType !== "music" && (
                               <a
                                 href={`/api/account/orders/${order.id}/items/${item.id}/download`}
                                 className="mt-4 inline-flex items-center justify-center rounded-lg border-2 border-black bg-red-600 px-5 py-2.5 text-sm font-black uppercase tracking-wide text-white transition hover:bg-red-700"

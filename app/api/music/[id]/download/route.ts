@@ -93,6 +93,7 @@ export async function GET(
           status: {
             in: [
               "paid",
+              "processing",
               "shipped",
               "delivered",
             ],
@@ -157,6 +158,8 @@ export async function GET(
         req.url
       );
 
+    const format = req.nextUrl.searchParams.get("format");
+    if (format) secureDownloadUrl.searchParams.set("format", format);
     const response =
       NextResponse.redirect(
         secureDownloadUrl,
